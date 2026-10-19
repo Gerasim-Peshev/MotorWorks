@@ -1,7 +1,7 @@
 {
   "name": "Motorworks Tycoon",
   "short_name": "Motorworks",
-  "description": "Build a car company from a 1970 garage into a global automaker.",
+  "description": "Build a car company from a garage into a global automaker. / Изградете автомобилна компания от гараж до световен производител.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

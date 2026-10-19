@@ -18,15 +18,15 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: workshop control panel — sticky status bar, bottom tab bar on phones, left rail on desktop; racing green + signal yellow */
 :root{
   --bg:#e7eae3; --surface:#f6f7f2; --sunk:#dde1d8; --ink:#18201b; --muted:#5a6560; --line:#c6cdc2;
   --accent:#f2b705; --on-accent:#1a1a12; --green:#1d5a3b; --good:#2f8a55; --bad:#c2412d; --warn:#b77a06;
   --glass:#2b3a44; --tyre:#1c1f22; --arch:#141816; --rim:#9aa3a6; --shadow:rgba(20,30,25,.16);
-  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
-  --body:"Barlow","Segoe UI",system-ui,sans-serif;
+  --display:"Oswald","Arial Narrow",Impact,sans-serif;
+  --body:"Fira Sans","Segoe UI",system-ui,sans-serif;
   --r:10px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
@@ -175,6 +175,11 @@ input[type=color]{width:52px;height:44px;padding:2px;border:1.5px solid var(--li
 .cyln{font:700 11px var(--body);fill:var(--ink)}
 @keyframes fire{0%,10%{fill:var(--accent);stroke:var(--ink)}22%,100%{fill:var(--surface);stroke:var(--muted)}}
 textarea.code{width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:9px;font:inherit;font-size:.75rem}
+.langsw{display:flex;gap:3px;align-items:center;border:1.5px solid var(--line);border-radius:8px;padding:4px;background:var(--surface);height:38px;flex:none}
+.langsw .fl{display:block;width:28px;height:19px;border-radius:3px;overflow:hidden;opacity:.45;filter:grayscale(.7);transition:opacity .15s,filter .15s}
+.langsw .fl svg{display:block;width:100%;height:100%}
+.langsw .fl.on{opacity:1;filter:none;box-shadow:0 0 0 2px var(--accent)}
+:lang(bg) .nav button{font-size:.62rem;letter-spacing:.02em}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -419,7 +424,7 @@ const SEGS={
  com:{n:'Commercial',base:4000,el:1.2,w:{practicality:.4,reliability:.3,economy:.2,comfort:.05,safety:.05}},
 };
 const SEGK=Object.keys(SEGS);
-const SCORE_N={performance:'Performance',comfort:'Comfort',economy:'Economy',green:'Emissions',safety:'Safety',reliability:'Reliability',practicality:'Practicality',prestige:'Prestige'};
+const SCORE_N={performance:'Performance',comfort:'Comfort',economy:'Fuel economy',green:'Emissions',safety:'Safety',reliability:'Reliability',practicality:'Practicality',prestige:'Prestige'};
 const HQ=[null,
  {n:'Rented Garage',cap:25,staff:4,up:250,cost:0},
  {n:'Workshop',cap:100,staff:10,up:1000,cost:600e3},
@@ -461,18 +466,279 @@ const EVENTS=[
  {id:'chip21',y:2021,m:5,t:'Chip shortage: component costs jump 15%.',mod:{cost:1.15,days:365}},
  {id:'fuel22',y:2022,m:3,t:'Fuel prices spike. Efficient and electric cars sell fast.',mod:{seg:{eco:1.25,green:1.35},days:365}}];
 
+/* ============ BULGARIAN ============ */
+const NAVBG={hq:'Централа',eng:'Двигатели',cars:'Коли',market:'Пазар',lab:'Наука',race:'Писта'};
+const BG={
+/* difficulty */
+'Easy':'Лесно','Normal':'Нормално','Hard':'Трудно',
+'The original balance. Relaxed growth.':'Оригиналният баланс. Спокоен растеж.',
+'About three times harder: fewer buyers, pricier research, upgrades and staff.':'Около три пъти по-трудно: по-малко купувачи, по-скъпи изследвания, подобрения и персонал.',
+'About five times harder. Every launch has to count.':'Около пет пъти по-трудно. Всеки нов модел трябва да е успешен.',
+/* research groups */
+'Engine':'Двигател','Chassis':'Шаси','Safety':'Безопасност','Comfort':'Комфорт','Bodies':'Каросерии','Drivetrain':'Задвижване','Factory':'Завод',
+/* research */
+'Overhead camshaft (SOHC)':'Горен разпределителен вал (SOHC)','Higher-revving heads: more power per litre.':'Двигатели с по-високи обороти: повече мощност от литър.',
+'Leaf-spring suspension':'Листови ресори','Tough, cheap springs for pickups, vans and trucks.':'Здрави и евтини ресори за пикапи, бусове и камиони.',
+'Crumple zones':'Деформационни зони','Body structures that absorb crash energy.':'Каросерия, която поема енергията при удар.',
+'Superchargers':'Компресори','Belt-driven boost in three sizes, with instant response.':'Механичен компресор в три размера с мигновен отклик.',
+'Rotary engine':'Ротационен двигател','Compact twin-rotor engine. Huge output, thirsty and fragile.':'Компактен двуроторен двигател. Огромна мощност, но лаком и крехък.',
+'Limited-slip differential':'Диференциал с ограничено приплъзване','Puts power down out of corners: better handling and traction.':'Предава мощността по-добре на изхода от завой: по-добро управление и сцепление.',
+'Air conditioning':'Климатик','Cool cabins sell cars everywhere.':'Хладният салон продава коли навсякъде.',
+'Cargo truck':'Товарен камион','Light box truck for the commercial market.':'Лек камион с фургон за търговския пазар.',
+'5-speed manual':'5-степенна ръчна','Taller top gear for economy, closer ratios for pace.':'По-дълга последна предавка за икономия, по-близки предавки за динамика.',
+'Quality control I':'Контрол на качеството I','+3 reliability on every engine.':'+3 надеждност за всеки двигател.',
+'V10 & V12 layouts':'V10 и V12','Big multi-cylinder engines for luxury and supercars.':'Големи многоцилиндрови двигатели за луксозни коли и суперколи.',
+'Sport suspension':'Спортно окачване','Stiffer springs and dampers. Sharper, less comfortable.':'По-твърди пружини и амортисьори. По-остро, но по-малко комфортно.',
+'Cruise control':'Темпомат','Holds speed on long motorway runs.':'Поддържа скоростта при дълги пътувания по магистрала.',
+'Turbocharger':'Турбокомпресор','One turbo, up to 0.8 bar of boost.':'Едно турбо с налягане до 0,8 bar.',
+'Family sedan body':'Семеен седан','Long-wheelbase sedan with a big cabin and boot.':'Седан с дълга база, голям салон и багажник.',
+'Electric windows':'Електрически стъкла','Small luxury, big showroom appeal.':'Малък лукс с голям ефект в шоурума.',
+'Multi-point injection':'Многоточково впръскване','An injector per cylinder: +10% power, about 10% better economy.':'Дюза за всеки цилиндър: +10% мощност и около 10% по-нисък разход.',
+'Van body':'Бус','Panel van for tradespeople and fleets.':'Товарен бус за майстори и автопаркове.',
+'4-speed automatic':'4-степенна автоматична','Smoother and more comfortable than the 3-speed.':'По-плавна и по-комфортна от 3-степенната.',
+'Twin camshaft (DOHC)':'Два разпределителни вала (DOHC)','Four valves per cylinder and a big jump in output.':'Четири клапана на цилиндър и голям скок в мощността.',
+'LPG fuel system':'Газова уредба (LPG)','Autogas: cheap to run, lower CO₂, slightly less power.':'Автогаз: евтин за каране, по-малко CO₂, малко по-ниска мощност.',
+'All-wheel drive':'Задвижване 4x4','Traction for rallies, SUVs and wet roads.':'Сцепление за ралита, джипове и мокри пътища.',
+'Heavy truck':'Тежкотоварен камион','Three-axle rigid truck. Big money in the commercial segment.':'Тривосов камион. Големи пари в търговския сегмент.',
+'Catalytic converter':'Катализатор','Cuts harmful emissions by about 15%.':'Намалява вредните емисии с около 15%.',
+'Robotic assembly':'Роботизирано производство','Unit production costs fall 10%.':'Себестойността пада с 10%.',
+'Sport sedan body':'Спортен седан','A four-door that can embarrass coupés.':'Четириврата кола, която засрамва купетата.',
+'Coilover suspension':'Койловър окачване','Adjustable race-style dampers. Best handling, harsh ride.':'Регулируеми състезателни амортисьори. Най-добро управление, твърдо возене.',
+'ABS brakes':'ABS спирачки','Anti-lock braking. A big boost to safety ratings.':'Антиблокираща система. Голям скок в оценката за безопасност.',
+'Heated seats':'Отопляеми седалки','Warm seats on cold mornings.':'Топли седалки в студените сутрини.',
+'Aluminium engine blocks':'Алуминиеви блокове','Engines 20% lighter.':'Двигателите са с 20% по-леки.',
+'Supercar platform':'Платформа за суперкола','Mid-engine wedge body for the fastest cars on earth.':'Каросерия със среден двигател за най-бързите коли на света.',
+'SUV body':'Джип (SUV)','Tall, rugged and very practical.':'Висок, здрав и много практичен.',
+'Airbags':'Въздушни възглавници','The biggest single safety upgrade.':'Най-голямото подобрение на безопасността.',
+'5-speed automatic':'5-степенна автоматична','One more ratio: smoother and more economical.':'Още една предавка: по-плавна и по-икономична.',
+'Variable valve timing':'Променливи фази (VVT)','+8% power across the rev range.':'+8% мощност в целия диапазон на оборотите.',
+'Twin-turbo':'Битурбо','Up to two turbos and 1.3 bar of boost.':'До две турбини и 1,3 bar налягане.',
+'Air suspension':'Въздушно окачване','Floating ride and self-levelling. Luxury buyers love it.':'Плавно возене и самонивелиране. Луксозните купувачи го обожават.',
+'Three & four-rotor engines':'Три- и четирироторни двигатели','Bigger rotaries for serious power.':'По-големи ротационни двигатели за сериозна мощност.',
+'Xenon headlights':'Ксенонови фарове','Bright blue-white light. Safer and more upmarket.':'Ярка синьо-бяла светлина. По-безопасно и по-престижно.',
+'Aluminium body':'Алуминиева каросерия','Body shell 20% lighter.':'Каросерията е с 20% по-лека.',
+'6-speed manual':'6-степенна ръчна','Six close ratios.':'Шест близки предавки.',
+'CVT gearbox':'Вариатор (CVT)','Stepless and smooth. Very economical, dull to drive.':'Безстепенна и плавна. Много икономична, но скучна за каране.',
+'Stability control':'Контрол на стабилността (ESP)','Catches skids before they happen.':'Хваща поднасянето, преди да се случи.',
+'Satellite navigation':'Навигация','Built-in maps and route guidance.':'Вградени карти и упътване.',
+'Parking sensors':'Парктроник','Beeps before you hit the bollard.':'Пиука, преди да ударите колчето.',
+'Quality control II':'Контрол на качеството II','+4 reliability on every engine.':'+4 надеждност за всеки двигател.',
+'Direct injection':'Директно впръскване','Petrol direct injection and common-rail diesel. More power, better economy.':'Директно впръскване за бензин и Common Rail за дизел. Повече мощност, по-нисък разход.',
+'Crossover body':'Кросоувър','SUV looks on a car platform. Buyers love it.':'Визия на джип върху платформа на лека кола. Купувачите го обичат.',
+'Micro car body':'Микрокола','Two-seat city car that parks anywhere.':'Двуместна градска кола, която се паркира навсякъде.',
+'W8, W12 & W16 engines':'W8, W12 и W16','Two narrow-angle V banks on one crank. Huge, compact power.':'Два тесни V-блока на един колянов вал. Огромна мощност в малък обем.',
+'Adaptive cruise control':'Адаптивен темпомат','Keeps its distance to the car ahead.':'Пази дистанция до колата отпред.',
+'Lean manufacturing':'Олекотено производство (Lean)','Unit production costs fall another 10%.':'Себестойността пада с още 10%.',
+'Rear-view camera':'Камера за задно виждане','See what is behind you when reversing.':'Виждате какво има зад вас на задна.',
+'6-speed automatic':'6-степенна автоматична','Comfort and economy together.':'Комфорт и икономичност заедно.',
+'6-speed dual-clutch':'6-степенна DCT','Lightning shifts for the quickest launches.':'Светкавични превключвания за най-бързите потегляния.',
+'Quad-turbo, high boost':'Четири турбини, високо налягане','Up to four turbos and 2.5 bar of boost.':'До четири турбини и 2,5 bar налягане.',
+'Carbon-fibre body':'Карбонова каросерия','Body shell 38% lighter. Very expensive.':'Каросерията е с 38% по-лека. Много скъпа.',
+'Keyless entry':'Безключов достъп','Walk up, open, drive.':'Приближавате, отключвате, тръгвате.',
+'Ventilated seats':'Вентилирани седалки','Cooled seats for hot summers.':'Охлаждани седалки за горещите лета.',
+'8-speed automatic':'8-степенна автоматична','Eight ratios: smooth, quick and frugal.':'Осем предавки: плавна, бърза и пестелива.',
+'LED headlights':'LED фарове','Sharp, efficient lighting with a modern look.':'Ясна, ефективна светлина и модерна визия.',
+'7-speed dual-clutch':'7-степенна DCT','One more ratio for the dual-clutch.':'Още една предавка за кутията с двоен съединител.',
+'360° cameras':'Камери 360°','Bird’s-eye view for tight parking.':'Изглед отгоре за тесни места.',
+'Electric drivetrain':'Електрическо задвижване','Battery-electric motors. Zero tailpipe emissions, instant torque.':'Батерия и електромотори. Нулеви емисии, мигновен въртящ момент.',
+'Head-up display':'Проекционен дисплей (HUD)','Speed and directions on the windscreen.':'Скорост и навигация върху предното стъкло.',
+'Quality control III':'Контрол на качеството III',
+'Driver assistance (Level 2)':'Асистенти за водача (ниво 2)','Lane keeping and automatic emergency braking.':'Задържане в лентата и автоматично аварийно спиране.',
+'Laser headlights':'Лазерни фарове','Twice the range of LEDs. Pure prestige.':'Двойно по-далечно осветяване от LED. Чист престиж.',
+'8-speed dual-clutch':'8-степенна DCT','Eight close ratios, instant shifts.':'Осем близки предавки, мигновени превключвания.',
+'Android Auto & CarPlay':'Android Auto и CarPlay','Phone apps on the dashboard screen.':'Приложенията от телефона на екрана в таблото.',
+'Hyper-boost turbos':'Хипер турбо','Up to ten turbos at up to 10 bar each. Wild power, fragile engines.':'До десет турбини с до 10 bar всяка. Безумна мощност, крехки двигатели.',
+'9-speed dual-clutch':'9-степенна DCT','The most ratios on the market.':'Най-много предавки на пазара.',
+'Self-driving (Level 3)':'Автономно шофиране (ниво 3)','Hands-off, eyes-off motorway driving.':'Без ръце и без поглед на магистралата.',
+/* engine parts */
+'Inline-3':'Редови 3','Inline-4':'Редови 4','Inline-5':'Редови 5','Inline-6':'Редови 6','Straight-8':'Редови 8','Flat-4':'Боксер 4','Flat-6':'Боксер 6',
+'Twin-rotor':'Двуроторен','Three-rotor':'Трироторен','Four-rotor':'Четирироторен','Electric':'Електрически',
+'Pushrod (OHV)':'Щангов (OHV)',
+'Petrol':'Бензин','Diesel':'Дизел','LPG':'Газ (LPG)',
+'Carburettor':'Карбуратор','Mechanical injection':'Механично впръскване',
+'None':'Без','Small':'Малък','Medium':'Среден','Large':'Голям',
+'Cast iron':'Чугун','Aluminium':'Алуминий',
+/* bodies */
+'Micro car':'Микрокола','Hatchback':'Хечбек','Sedan':'Седан','Family sedan':'Семеен седан','Sport sedan':'Спортен седан','Estate':'Комби','Coupé':'Купе','Convertible':'Кабрио','Pickup':'Пикап','SUV':'Джип (SUV)','Crossover':'Кросоувър','Supercar':'Суперкола','Van':'Бус',
+/* gearboxes */
+'4-speed manual':'4-ст. ръчна','3-speed auto':'3-ст. автоматична','4-speed auto':'4-ст. автоматична','5-speed auto':'5-ст. автоматична','6-speed auto':'6-ст. автоматична','CVT':'Вариатор (CVT)','6-speed DCT':'6-ст. DCT','8-speed auto':'8-ст. автоматична','7-speed DCT':'7-ст. DCT','8-speed DCT':'8-ст. DCT','9-speed DCT':'9-ст. DCT','Single-speed':'Едностепенна',
+/* drive, suspension, interior, material, lights */
+'Front-wheel':'Предно','Rear-wheel':'Задно','All-wheel':'4x4',
+'Standard':'Стандартно','Leaf springs':'Листови ресори','Sport':'Спортно','Coilovers':'Койловъри',
+'Basic':'Базов','Premium':'Премиум','Luxury':'Лукс',
+'Steel':'Стомана','Carbon fibre':'Карбон',
+'Halogen':'Халогенни','Xenon':'Ксенонови','LED':'LED','Laser':'Лазерни',
+/* equipment */
+'ABS':'ABS','Driver assist L2':'Асистенти ниво 2','Self-driving L3':'Автопилот ниво 3','Power steering':'Серво волан','Sunroof':'Шибидах','Air con':'Климатик','Navigation':'Навигация','Rear camera':'Задна камера','Adaptive cruise':'Адаптивен темпомат',
+/* paints */
+'Signal yellow':'Сигнално жълто','Racing green':'Състезателно зелено','Rosso':'Червено','Ocean':'Океанско синьо','Arctic':'Арктическо бяло','Graphite':'Графит','Bronze':'Бронз','Lime':'Лайм','Midnight':'Нощно синьо','Orange':'Оранжево',
+/* segments & scores */
+'Economy':'Икономичен','Family':'Семеен','Sports':'Спортен','Utility':'Утилитарен','Green':'Екологичен','Commercial':'Търговски',
+'Performance':'Динамика','Fuel economy':'Икономичност','Emissions':'Емисии','Reliability':'Надеждност','Practicality':'Практичност','Prestige':'Престиж',
+/* HQ, staff, marketing */
+'Rented Garage':'Нает гараж','Workshop':'Работилница','Assembly Factory':'Монтажен цех','Production Plant':'Завод','Gigafactory':'Гигафабрика',
+'Engineers':'Инженери','Generate research points':'Генерират точки за изследвания','Designers':'Дизайнери','Raise comfort, safety and prestige of new models':'Повишават комфорта, безопасността и престижа на новите модели','Marketers':'Маркетолози','Grow brand awareness every day':'Увеличават разпознаваемостта на марката всеки ден',
+'Local radio & flyers':'Местно радио и флаери','Magazine spread':'Реклама в списание','TV commercial':'Телевизионна реклама','Global campaign':'Глобална кампания',
+/* races */
+'Hill Climb Cup':'Купа по планинско изкачване','Short and twisty. Handling counts.':'Кратко и криволичещо. Управлението е решаващо.',
+'Forest Rally':'Горско рали','Gravel stages. All-wheel drive gets a big edge.':'Чакълени отсечки. Колите 4x4 имат голямо предимство.',
+'Touring Car Round':'Туринг кръг','Wheel-to-wheel saloon racing.':'Състезание колело до колело със седани.',
+'24 Hours Endurance':'24 часа издръжливост','A full day flat out. Unreliable cars retire.':'Цяло денонощие на пълна газ. Ненадеждните коли отпадат.',
+'Hypercar Grand Prix':'Гран при на хиперколите','The fastest cars on the planet.':'Най-бързите коли на планетата.',
+/* rivals */
+'German premium':'Германски премиум','Japanese mass-market':'Японски масов','Italian sports cars':'Италиански спортни коли','American muscle & trucks':'Американски мъсъл и пикапи','French comfort':'Френски комфорт','Swedish safety':'Шведска безопасност','Korean value':'Корейска изгода','You':'Вие',
+/* events */
+'Oil crisis: fuel prices quadruple. Buyers rush to economical cars.':'Петролна криза: цените на горивата се учетворяват. Купувачите търсят икономични коли.',
+'Second oil shock. Thirsty cars are hard to sell.':'Втори петролен шок. Лакомите коли се продават трудно.',
+'Recession: car sales slump across the board.':'Рецесия: продажбите на коли падат навсякъде.',
+'Emission standards take effect. Cars over the limit sell worse and are fined per unit.':'Влизат в сила норми за емисиите. Колите над лимита се продават по-слабо и се глобяват за всяка бройка.',
+'The SUV craze begins. Utility vehicles are suddenly fashionable.':'Започва модата на джиповете. Утилитарните коли изведнъж са на мода.',
+'Eco-conscious buyers emerge as a new market segment.':'Екологично мислещите купувачи стават нов пазарен сегмент.',
+'Diesel boom in Europe: frugal turbo-diesels top the sales charts.':'Дизелов бум в Европа: икономичните турбодизели оглавяват продажбите.',
+'Global financial crisis. Credit dries up and buyers wait.':'Световна финансова криза. Кредитите пресъхват и купувачите чакат.',
+'Emissions-cheating scandal rocks the industry. Clean cars are in demand.':'Скандал с измами при емисиите разтърсва индустрията. Чистите коли са търсени.',
+'Pandemic lockdowns close showrooms worldwide.':'Пандемията затваря автосалоните по целия свят.',
+'Chip shortage: component costs jump 15%.':'Недостиг на чипове: цените на компонентите скачат с 15%.',
+'Fuel prices spike. Efficient and electric cars sell fast.':'Цените на горивата скачат. Икономичните и електрическите коли се продават бързо.',
+/* eras */
+'Carburettors and pushrods. A wide-open market.':'Карбуратори и щанги. Широко отворен пазар.',
+'Oil-crisis years. Small, thrifty cars rule.':'Години на петролни кризи. Малките икономични коли царуват.',
+'Fuel injection and turbos arrive.':'Идват впръскването и турбото.',
+'Robots, ABS and the first supercars.':'Роботи, ABS и първите суперколи.',
+'Emission limits begin. The SUV boom is coming.':'Започват лимитите за емисии. Идва бумът на джиповете.',
+'Airbags and twin-turbos are standard kit.':'Въздушните възглавници и битурбото са стандарт.',
+'Diesel boom and green buyers. Rivals are strong.':'Дизелов бум и екокупувачи. Конкурентите са силни.',
+'Carbon fibre and dual-clutch gearboxes.':'Карбон и кутии с двоен съединител.',
+'Electric cars become possible. A mature, tough market.':'Електромобилите стават възможни. Зрял и труден пазар.',
+'Clean cars surge after the emissions scandal.':'Чистите коли набират скорост след скандала с емисиите.',
+'Pandemic, chip shortage and the EV race.':'Пандемия, недостиг на чипове и надпревара с електромобилите.',
+'Established rivals everywhere.':'Утвърдени конкуренти навсякъде.',
+/* engine descriptions & units */
+'{v} hp electric':'{v} к.с. електрически','turbo':'турбо','twin-turbo':'битурбо','{n} turbos':'{n} турбини','supercharged':'с компресор',
+'L':'л','{v} hp':'{v} к.с.','{v} Nm':'{v} Нм','{v} kg':'{v} кг','{v} rpm':'{v} об/мин','mm':'мм','{v} s':'{v} с','{v} km/h':'{v} км/ч','{v} L/100 km':'{v} л/100 км','{v} kWh/100 km':'{v} kWh/100 км','{v} g/km':'{v} г/км','/day':'/ден','/mo':'/мес.',
+/* news & sim */
+'{name} opens its doors in a rented garage. Design your first engine, then build a car around it.':'{name} отваря врати в нает гараж. Проектирайте първия си двигател, а после кола около него.',
+'Out of cash and credit. Factories are building less until money comes in. Lower production or raise prices.':'Нямате пари и кредит. Заводът произвежда по-малко, докато не влязат пари. Намалете производството или вдигнете цените.',
+'{name} ({tag}) enters the world market.':'{name} ({tag}) излиза на световния пазар.',
+'{y} results':'Резултати за {y}','Market leader':'Пазарен лидер',
+'{name} sold more vehicles than any rival in {y} with {share} of the world market. You are an automotive tycoon.':'{name} продаде повече коли от всеки конкурент през {y} с {share} от световния пазар. Вие сте автомобилен магнат.',
+'Keep playing':'Продължи играта','New research available: {list}.':'Нови изследвания: {list}.',
+'Car of the Year: the {name} wins the jury vote. Reputation and awareness up.':'Кола на годината: {name} печели гласуването на журито. Репутацията и разпознаваемостта растат.',
+'Recall: the {name} has a faulty part. Repairs cost {cost} and dent your reputation.':'Изтегляне: {name} има дефектна част. Ремонтите струват {cost} и вредят на репутацията ви.',
+'Workers strike at your plant. Output is halved for two weeks.':'Стачка в завода. Производството е наполовина за две седмици.',
+'A supplier offers bulk discounts: production costs down 10% this month.':'Доставчик предлага отстъпка: себестойността пада с 10% този месец.',
+'A road-test video of the {name} goes viral. Brand awareness up.':'Видео от тест на {name} става вайръл. Разпознаваемостта на марката расте.',
+'{name} unveils a new model line. Competition heats up.':'{name} представя нова гама модели. Конкуренцията се нажежава.',
+/* engine diagram */
+'Electric motor':'Електромотор','Electric motor · no firing order':'Електромотор · без ред на запалване',
+'Single bank, crankshaft below':'Един ред цилиндри, коляновият вал отдолу','Bank A on top, bank B below, sharing one crank':'Ред А отгоре, ред Б отдолу, с общ колянов вал',
+'Opposed banks on both sides of the crank':'Противоположни редове от двете страни на вала','Four staggered rows: two narrow V banks on one crank':'Четири разместени реда: два тесни V-блока на един вал',
+'Rotors on one eccentric shaft':'Ротори на един ексцентриков вал','Firing order':'Ред на запалване','firing order':'ред на запалване',
+/* top bar & nav */
+'Cash':'Пари','Research pts':'Точки (RP)','Month P&L':'Резултат за месеца','Game speed':'Скорост на играта','Speed':'Скорост','Pause':'Пауза','Game menu':'Меню',
+'HQ':'Централа','Engines':'Двигатели','Cars':'Коли','Market':'Пазар','Research':'Изследвания','Racing':'Състезания',
+/* stock tags */
+'Not in production':'Не се произвежда','No cash to build':'Няма пари за производство','Factory full':'Заводът е пълен','Overstocked':'Препълнен склад','Sold out':'Разпродадено','Selling':'Продава се',
+/* coach */
+'Every car needs an engine. Open Engines and design your first one.':'Всяка кола има нужда от двигател. Отворете „Двигатели“ и проектирайте първия.',
+'Your engine is ready. Open Cars and design your first model around it.':'Двигателят е готов. Отворете „Коли“ и проектирайте първия си модел около него.',
+'Your model is ready. On the Cars tab, set its production to start building and selling.':'Моделът е готов. В раздел „Коли“ задайте производство, за да започнете да продавате.',
+'You are out of cash and credit, so the factory is building less. Lower production on weak sellers or raise prices.':'Нямате пари и кредит, затова заводът произвежда по-малко. Намалете производството на слабите модели или вдигнете цените.',
+'You ordered more cars than your {hq} can build, so every version gets a share. Lower some orders or upgrade HQ.':'Поръчали сте повече коли, отколкото може да произведе {hq}, затова всяка версия получава дял. Намалете поръчките или надградете централата.',
+'Unsold {name} cars are piling up. Cut its production or lower the price.':'Непродадени коли {name} се трупат. Намалете производството или цената.',
+'You can afford the {hq}. Upgrade to raise capacity to {cap} cars a day.':'Можете да си позволите: {hq}. Надградете, за да вдигнете капацитета до {cap} коли на ден.',
+'{name} is ready to research.':'{name} е готово за изследване.',
+'Few buyers know your brand yet. A marketing campaign will help.':'Малко купувачи познават марката ви. Маркетингова кампания ще помогне.',
+'Check the Market tab for segments where rivals are weak, then design a model or a new version for them.':'Вижте раздел „Пазар“ за сегменти със слаби конкуренти и направете модел или нова версия за тях.',
+/* HQ view */
+'The cash chart fills in month by month.':'Графиката се попълва месец по месец.','Cash over the last {n} months':'Пари през последните {n} месеца','{n} months ago':'преди {n} месеца','Now':'Сега',
+'Running':'Активна','Needs {hq}':'Изисква: {hq}','+{a} pts awareness · sales ×{b} for {d} days':'+{a} т. разпознаваемост · продажби ×{b} за {d} дни',
+'Let one go':'Освободи един','Hire':'Наеми','Each hire costs 20% more than the last.':'Всяко наемане е с 20% по-скъпо от предишното.',
+'Next':'Съвет','Credit line {v}':'Кредитна линия {v}','Last 30 days':'Последни 30 дни','profit after all costs':'печалба след всички разходи','Market share':'Пазарен дял','of world vehicle sales':'от световните продажби','Reputation':'Репутация','from reviews & racing':'от ревюта и състезания','Brand awareness':'Разпознаваемост','buyers who know you':'купувачи, които ви познават','Vehicles sold':'Продадени коли','this year so far':'досега тази година',
+'Headquarters · level {n} of 5':'Централа · ниво {n} от 5','Built today':'Произведени днес','Staff':'Персонал','Upkeep':'Поддръжка','Salaries':'Заплати','Upgrade to {hq}':'Надгради: {hq}','{cap} cars/day · {staff} staff':'{cap} коли/ден · {staff} служители','Fully upgraded':'Максимално ниво',
+'Cash, monthly':'Пари по месеци','Bank balance':'Банкова сметка','Marketing':'Маркетинг','Sales':'Продажби','News':'Новини','{n} market event active':'{n} активно пазарно събитие','{n} market events active':'{n} активни пазарни събития',
+/* engines view */
+'Battery-electric':'Батерийно-електрически','Rotary':'Ротационен','{n}× turbo @ {b} bar':'{n}× турбо @ {b} bar','{size} supercharger':'Компресор: {size}','{n} model':'{n} модел','{n} models':'{n} модела',
+'Power':'Мощност','Torque':'Въртящ момент','Motor':'Мотор','Displacement':'Работен обем','Weight':'Тегло','Unit cost':'Цена на брой',
+'{n} engine':'{n} двигател','{n} engines':'{n} двигателя','Design engine':'Нов двигател','No engines yet':'Още няма двигатели',
+'Pick a layout and fuel, size the cylinders and choose the tech. Small four-cylinders are cheap and reliable; big diesels move trucks; V8s sell sports and luxury cars.':'Изберете конфигурация и гориво, оразмерете цилиндрите и изберете технологиите. Малките четирицилиндрови са евтини и надеждни; големите дизели движат камиони; V8 продават спортни и луксозни коли.',
+'Design your first engine':'Проектирайте първия си двигател',
+/* cars view */
+'review {v}/10':'оценка {v}/10','Built / day':'Произв. / ден','In stock':'На склад','Sold / day':'Продажби / ден','Demand / day':'Търсене / ден','Margin / car':'Печалба / кола',
+'{v} g/km is over the {lim} g/km limit':'{v} г/км е над лимита от {lim} г/км','Production per day':'Производство на ден','Price (follows inflation)':'Цена (следва инфлацията)','Build cost':'Себестойност','Specs':'Данни','Retire':'Спри','Sold total':'Общо продадени',
+'{n} version':'{n} версия','{n} versions':'{n} версии','Add a version':'Добави версия','Factory: {want} ordered · {cap} cars/day capacity, shared':'Завод: поръчани {want} · капацитет {cap} коли/ден, общ',
+'Design car':'Нова кола','No models yet':'Още няма модели','Choose a body, fit one of your engines and set a price.':'Изберете каросерия, сложете двигател и определете цена.','You need an engine first.':'Първо ви трябва двигател.','Design your first car':'Проектирайте първата си кола','Go to Engines':'Към двигателите',
+/* market view */
+'No sales yet':'Още няма продажби','Body':'Каросерия','Gearbox':'Скоростна кутия',
+'Emerges late 1990s':'Появява се в края на 90-те','Your yearly share appears here after the first full year.':'Годишният ви дял се показва тук след първата пълна година.','Market share by year':'Пазарен дял по години','Bold line: {name}':'Дебела линия: {name}',
+'This year so far':'Тази година досега','Last year':'Миналата година','World market · {y}':'Световен пазар · {y}','Emission limit {v} g/km':'Лимит за емисии {v} г/км','No emission limit yet':'Още няма лимит за емисии',
+'Your best sellers':'Вашите хитове','{n} vehicle':'{n} кола','{n} vehicles':'{n} коли','Manufacturers':'Производители','vehicles sold':'продадени коли','Share history':'История на дела','Segments':'Сегменти','Daily buyers worldwide and who wins them':'Купувачи на ден в света и кой ги печели','Segment':'Сегмент','Buyers/day':'Купувачи/ден','Leader':'Лидер','Until {d}':'До {d}',
+/* research view */
+'RP':'т.','From {y}':'От {y}','{n} research points · +{r}/day':'{n} точки за изследвания · +{r}/ден','Available':'Налични','Nothing new right now. More technology arrives as the years pass.':'Засега няма нищо ново. С годините идват още технологии.','Coming soon':'Предстоящи','You have seen every technology.':'Видели сте всички технологии.','Researched ({n})':'Изследвани ({n})',
+/* racing view */
+'Win prize money, reputation and fans':'Печелете награди, репутация и фенове','Next {d}':'Следващо: {d}','Open':'Отворено','Entry fee':'Такса участие','Winner gets':'Победителят печели','Field pace':'Темпо на съперниците','Your entry':'Вашата кола','pace':'темпо','Enter race':'Участвай',
+/* engine designer */
+'Engine {n}':'Двигател {n}','Type':'Тип','Redline':'Макс. обороти','hp per litre':'к.с. на литър','Very fragile: expect recalls and race retirements':'Много крехък: очаквайте изтегляния и отпадания от състезания','Development cost {v}':'Разработка: {v}',
+'Engine bay · {y} technology':'Двигателен отдел · технологии от {y}','Cancel':'Отказ','Name':'Име','Layout':'Конфигурация','Motor power':'Мощност на мотора','Fuel':'Гориво','Fuel system':'Горивна система','Bore':'Диаметър','Stroke':'Ход',
+'Bore wider than stroke revs higher for more power. A long stroke gives more torque.':'Диаметър, по-голям от хода, дава повече обороти и мощност. Дългият ход дава повече въртящ момент.',
+'Valvetrain':'Газоразпределение','Turbochargers':'Турбокомпресори','Research Turbocharger ({y}) to fit turbos.':'Изследвайте „Турбокомпресор“ ({y}), за да слагате турбо.','Boost per turbo':'Налягане на турбо','no turbos':'без турбо',
+'Your tech allows up to {n} turbo(s) at {b} bar.':'Технологиите ви позволяват до {n} турбо при {b} bar.','More research raises this to 10 turbos at 10 bar.':'Още изследвания вдигат това до 10 турбини при 10 bar.',
+'Supercharger':'Компресор','Block material':'Материал на блока','Weight override (kg)':'Ръчно тегло (кг)','Calculated: {v} kg':'Изчислено: {v} кг','Leave blank to use the calculated weight. Allowed range 50–200% of it.':'Оставете празно за изчисленото тегло. Допустимо: 50–200% от него.','Build engine':'Създай двигател',
+/* car designer */
+'0–100 km/h':'0–100 км/ч','Top speed':'Макс. скорост','Energy use':'Разход на енергия','Fuel use':'Разход','Best fit: {seg} buyers':'Най-подходяща за сегмент: {seg}','Suggested price':'Препоръчана цена','Est. demand':'Очаквано търсене',
+'Design studio · development {v}':'Дизайн студио · разработка {v}','New version':'Нова версия','Adding a version of':'Нова версия на',
+'{body} · {mat} body. Body and shell stay the same; everything else can change.':'{body} · материал: {mat}. Каросерията остава същата; всичко друго може да се промени.',
+'Model name':'Име на модела','Version name':'Име на версията','e.g. 2.0d 4x4':'напр. 2.0d 4x4','Drive':'Задвижване','Limited-slip diff':'LSD диференциал','Suspension':'Окачване','Interior':'Интериор','Body material':'Материал на каросерията','Headlights':'Фарове','Comfort & tech':'Комфорт и технологии','Paint':'Боя','Any colour':'Всеки цвят','Hex colour':'Hex цвят','Any RGB colour':'Всеки RGB цвят',
+'Curb weight override (kg)':'Ръчно тегло на колата (кг)','Price (leave blank for suggested)':'Цена (празно = препоръчана)','Suggested':'Препоръчана','Launch version':'Пусни версията','Launch model':'Пусни модела',
+/* setup */
+'You start with {cash}, a rented garage and three staff.':'Започвате с {cash}, нает гараж и трима служители.','{n} older technologies come already researched.':'{n} по-стари технологии са вече изследвани.','Nothing is researched yet.':'Още нищо не е изследвано.','No engines or cars: you design everything.':'Без двигатели и коли: вие проектирате всичко.',
+'Found your company':'Основете компанията си','Company name':'Име на компанията','Start year':'Начална година','{y}s':'{y}-те','Difficulty':'Трудност','Open the garage':'Отвори гаража',
+'Continue from another device':'Продължи от друго устройство','On your other device, open the menu and tap Copy save code. Paste it here.':'На другото устройство отворете менюто и натиснете „Копирай кода на играта“. Поставете го тук.','Paste save code':'Поставете кода','Load save':'Зареди играта',
+/* reviews */
+'Autocar Weekly':'Авто Седмица','Road & Wheel':'Път и Колело','Gearbox Gazette':'Скоростна кутия','The Driving Post':'Шофьорски вестник','Fleet & Freight':'Автопарк и Товари',
+'A new benchmark. Buy one.':'Нов еталон. Купете си.','A strong contender in its class.':'Силен претендент в класа си.','Competent, but rivals do it better.':'Добра, но конкурентите се справят по-добре.','Hard to recommend at this price.':'Трудно е да се препоръча на тази цена.',
+'and it is a bargain for the money':'и е изгодна покупка','though the price is hard to justify':'но цената трудно се оправдава','and it is fairly priced':'и е с честна цена','{seg} class':'клас {seg}',
+'Testers praised its {good}, {price}. Weak points: {bad}.':'Тестерите похвалиха: {good}, {price}. Слаби страни: {bad}.',' and ':' и ','Set its production on the Cars tab to put it on sale.':'Задайте производство в раздел „Коли“, за да я пуснете в продажба.',
+/* menu & actions */
+'{diff} difficulty · founded {y} · now {d}. The game saves on this device automatically.':'Трудност: {diff} · основана {y} · сега {d}. Играта се запазва автоматично на това устройство.',
+'Move to another device':'Премести на друго устройство','Copy this code, send it to yourself, then paste it on the other device’s start screen.':'Копирайте кода, изпратете си го и го поставете в началния екран на другото устройство.',
+'Copy save code':'Копирай кода на играта','Close':'Затвори','Save now':'Запази','New company':'Нова компания','Save code copied.':'Кодът е копиран.','Code selected. Copy it with your keyboard or long-press.':'Кодът е маркиран. Копирайте го с клавиатурата или със задържане.','Game saved.':'Играта е запазена.',
+'That code could not be read. Copy the whole code and try again.':'Кодът не може да се прочете. Копирайте целия код и опитайте пак.','Save loaded: {name}, {d}.':'Играта е заредена: {name}, {d}.',
+'{name} moves into a {hq}.':'{name} се мести в нова база: {hq}.','{name} launched.':'Кампанията „{name}“ започна.','Research complete: {name}.':'Изследването е завършено: {name}.','Design an engine first.':'Първо проектирайте двигател.',
+'You need {v} to develop this engine.':'Нужни са ви {v} за този двигател.','{name} is ready: {hp}.':'{name} е готов: {hp}.','You need {v} to develop this.':'Нужни са ви {v} за разработката.','The {name} launches to a {v}/10 review.':'{name} излиза с оценка {v}/10.','Go to production':'Към производството',
+'Retire the {name}?':'Да спрем ли {name}?','Production stops and the {n} cars in stock are sold to fleet buyers for {v}.':'Производството спира, а {n} коли от склада се продават на автопаркове за {v}.','Keep it':'Остави','Retire version':'Спри версията',
+'Energy':'Енергия','{v} suspension':'окачване: {v}','{v} interior':'интериор: {v}','{v} lights':'фарове: {v}','Scores are rated against vehicles of {y}. Older designs slip as rivals improve.':'Оценките са спрямо колите от {y}. По-старите модели изостават, докато конкурентите се подобряват.',
+/* racing */
+'Lights out':'Старт!','Racing…':'Състезанието тече…','The {name} retired with mechanical failure.':'{name} отпадна с механична повреда.','The {name} finished P{pos} of 8 and won {v}.':'{name} завърши {pos}-и от 8 и спечели {v}.','The {name} finished P{pos} of 8.':'{name} завърши {pos}-и от 8.',
+'Reputation up.':'Репутацията расте.','Back to the paddock':'Обратно в бокса','Bankrupt':'Фалит','The banks have called in {name}’s loans. You sold {n} vehicles before the doors closed.':'Банките поискаха кредитите на {name}. Продадохте {n} коли, преди да затворите.','Start a new company':'Нова компания',
+};
+
+/* ============ LANGUAGE ============ */
+const LANGKEY='motorworks-lang';
+let LANG=(()=>{try{const v=localStorage.getItem(LANGKEY);if(v==='en'||v==='bg')return v}catch(e){}return (navigator.language||'').toLowerCase().startsWith('bg')?'bg':'en'})();
+const MONS={en:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],bg:['Яну','Фев','Мар','Апр','Май','Юни','Юли','Авг','Сеп','Окт','Ное','Дек']};
+function fmtP(v){return Array.isArray(v)?v.map(x=>tx(x)).join(', '):v}
+function tx(s,p){let r=(LANG==='bg'&&BG[s]!==undefined)?BG[s]:s;if(p)r=r.replace(/\{(\w+)\}/g,(m,k)=>p[k]!==undefined?fmtP(p[k]):m);return r}
+const dec=(n,d)=>{const s=(+n).toFixed(d);return LANG==='bg'?s.replace('.',','):s};
+const plural=(n,one,many)=>tx(n===1?one:many,{n});
+const FLAG_US='<svg viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="20" fill="#b22234"/><path d="M0 2.3h30M0 5.4h30M0 8.5h30M0 11.5h30M0 14.6h30M0 17.7h30" stroke="#fff" stroke-width="1.54"/><rect width="13" height="10.8" fill="#3c3b6e"/><g fill="#fff"><circle cx="2.2" cy="2" r=".7"/><circle cx="5.2" cy="2" r=".7"/><circle cx="8.2" cy="2" r=".7"/><circle cx="11" cy="2" r=".7"/><circle cx="3.7" cy="4.3" r=".7"/><circle cx="6.7" cy="4.3" r=".7"/><circle cx="9.6" cy="4.3" r=".7"/><circle cx="2.2" cy="6.6" r=".7"/><circle cx="5.2" cy="6.6" r=".7"/><circle cx="8.2" cy="6.6" r=".7"/><circle cx="11" cy="6.6" r=".7"/><circle cx="3.7" cy="8.9" r=".7"/><circle cx="6.7" cy="8.9" r=".7"/><circle cx="9.6" cy="8.9" r=".7"/></g></svg>';
+const FLAG_BG='<svg viewBox="0 0 30 20" aria-hidden="true"><rect width="30" height="6.67" fill="#fff"/><rect y="6.67" width="30" height="6.67" fill="#00966e"/><rect y="13.33" width="30" height="6.67" fill="#d62612"/></svg>';
+const langSwitch=()=>`<button class="langsw" data-a="lang" aria-label="${LANG==='bg'?'Switch to English':'Превключи на български'}" title="English / Български"><span class="fl ${LANG==='en'?'on':''}">${FLAG_US}</span><span class="fl ${LANG==='bg'?'on':''}">${FLAG_BG}</span></button>`;
+
 /* ============ STATE ============ */
 let S=null, tab='hq', sheet=null, draft=null, timer=null, lastSave=0, monthly=false, setupYear=1970, setupDiff='easy';
 const has=t=>!t||S.tech.includes(t);
 const yearF=()=>1970+S.day/365.25;
 const dateOf=d=>new Date(DAY0+d*864e5);
 const dayOf=(y,m)=>Math.round((Date.UTC(y,m-1,1)-DAY0)/864e5);
-const dateStr=d=>{const t=dateOf(d);return MON[t.getUTCMonth()]+' '+t.getUTCFullYear()};
+const dateStr=d=>{const t=dateOf(d);return MONS[LANG][t.getUTCMonth()]+' '+t.getUTCFullYear()};
 const curYear=()=>dateOf(S.day).getUTCFullYear();
 const I=()=>infl(yearF());
-function fm(n){const s=n<0?'−':'';n=Math.abs(n);if(n>=1e9)return s+'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return s+'$'+(n/1e6).toFixed(2)+'M';if(n>=1e4)return s+'$'+Math.round(n/1e3)+'k';return s+'$'+Math.round(n).toLocaleString('en-US')}
-const fn=n=>Math.round(n).toLocaleString('en-US');
-const pct=n=>(n*100).toFixed(n<.1?1:0)+'%';
+function fm(n){const s=n<0?'−':'';n=Math.abs(n);
+  if(LANG==='bg'){if(n>=1e9)return s+'$'+dec(n/1e9,2)+' млрд';if(n>=1e6)return s+'$'+dec(n/1e6,2)+' млн';if(n>=1e4)return s+'$'+Math.round(n/1e3)+' хил.';return s+'$'+Math.round(n).toLocaleString('bg-BG')}
+  if(n>=1e9)return s+'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return s+'$'+(n/1e6).toFixed(2)+'M';if(n>=1e4)return s+'$'+Math.round(n/1e3)+'k';return s+'$'+Math.round(n).toLocaleString('en-US')}
+const fn=n=>Math.round(n).toLocaleString(LANG==='bg'?'bg-BG':'en-US');
+const pct=n=>dec(n*100,n<.1?1:0)+'%';
 const engById=id=>S.engines.find(e=>e.id===id);
 const carById=id=>S.cars.find(c=>c.id===id);
 const fullName=c=>c.mname+(c.trim?' '+c.trim:'');
@@ -488,7 +754,7 @@ function newGame(name,sy,diff){
     tech:TECH.filter(t=>t.y<=sy-3).map(t=>t.id),engines:[],cars:[],comp:newComps(sy,DIFF[diff].k),
     news:[],mods:[],mkt:[],yr:{me:0,comp:COMPS0.map(()=>0)},lastYr:null,years:[],hist:[],pl:[],ana:newAna(),anaLast:null,
     evDone:EVENTS.filter(e=>dayOf(e.y,e.m)<=d0).map(e=>e.id),races:{},speed:1,won:false,over:false,nid:1};
-  s.news.push({d:d0,t:`${name} opens its doors in a rented garage. Design your first engine, then build a car around it.`});
+  s.news.push({d:d0,k:'{name} opens its doors in a rented garage. Design your first engine, then build a car around it.',p:{name}});
   return s;
 }
 function migrate(s){
@@ -504,6 +770,7 @@ function migrate(s){
 }
 function save(){try{if(S)localStorage.setItem(SAVEKEY,JSON.stringify(S))}catch(e){}}
 function load(){try{const r=localStorage.getItem(SAVEKEY);return r?migrate(JSON.parse(r)):null}catch(e){return null}}
+
 
 /* ============ MODEL ============ */
 function engStats(e){
@@ -531,9 +798,10 @@ function engStats(e){
   const eco=F.eco*J.eco*(tb?1+.04*bar:1)*SC.eco;
   return {L,hp,tq,w:e.wo?clamp(e.wo,w0*.5,w0*2):w0,wAuto:w0,rel:clamp(Math.round(rel),3,99),cost,cyl,rot,rpm,spec,boostM,eco,co2:F.co2};
 }
-function engDesc(e){const s=engStats(e),L=LAYOUTS[e.layout];if(s.ev)return `${s.hp} hp electric`;
-  const ind=e.turbos?(e.turbos===1?'turbo':e.turbos===2?'twin-turbo':e.turbos+' turbos'):'';const sc=e.sc&&e.sc!=='none'?'supercharged':'';
-  return `${s.L.toFixed(1)} L ${L.n} ${FUELS[e.fuel].n.toLowerCase()}${ind?' '+ind:''}${sc?' '+sc:''} · ${s.hp} hp`}
+function engDesc(e){const s=engStats(e),L=LAYOUTS[e.layout];if(s.ev)return tx('{v} hp electric',{v:fn(s.hp)});
+  const ind=e.turbos?(e.turbos===1?tx('turbo'):e.turbos===2?tx('twin-turbo'):tx('{n} turbos',{n:e.turbos})):'';const sc=e.sc&&e.sc!=='none'?tx('supercharged'):'';
+  return `${dec(s.L,1)} ${tx('L')} ${tx(L.n)} ${tx(FUELS[e.fuel].n).toLowerCase()}${ind?' '+ind:''}${sc?' '+sc:''} · ${tx('{v} hp',{v:fn(s.hp)})}`}
+
 function emisLimit(y){if(y<1990)return 0;const pts=[[1990,230],[2000,190],[2010,150],[2020,115],[2035,85]];for(let i=1;i<pts.length;i++){if(y<=pts[i][0]){const[a,b]=pts[i-1],[c,d]=pts[i];return b+(d-b)*(y-a)/(c-a)}}return 85}
 function carStats(c,y){
   y=y||yearF();
@@ -608,6 +876,7 @@ function solveMarket(y,stats){
   return {dem,compU,tot,segInfo};
 }
 
+
 /* ============ SIM ============ */
 function simDay(){
   const y=yearF(),inf=infl(y),stats={};
@@ -625,7 +894,7 @@ function simDay(){
     if(S.money-prodCost-n*unit<-credit){n=Math.max(0,Math.floor((S.money-prodCost+credit)/unit));c.block='cash';cashBlocked=true}
     c.inv+=n;c.built=n;used+=n;prodCost+=n*unit;
   }
-  if(cashBlocked&&!S.credWarn){S.credWarn=1;notify('Out of cash and credit. Factories are building less until money comes in. Lower production or raise prices.',true)}
+  if(cashBlocked&&!S.credWarn){S.credWarn=1;news('Out of cash and credit. Factories are building less until money comes in. Lower production or raise prices.')}
   if(!cashBlocked)S.credWarn=0;
   S.used=used;
   const mk=solveMarket(y,stats),lim=emisLimit(y);
@@ -636,8 +905,8 @@ function simDay(){
     c.frac=Math.min(wantN-n,.99);c.inv-=n;c.sold+=n;sold+=n;rev+=n*c.price*inf;
     if(lim&&stats[c.id].emis>lim)fines+=n*150*inf;
     c.rate=c.rate*.85+n*.15;c.dem=c.dem*.85+d*.15;
-    if(n){const a=S.ana,E=engById(c.eng),ek=LAYOUTS[E.layout].ev?'Electric':LAYOUTS[E.layout].n+' '+FUELS[E.fuel].n.toLowerCase();
-      a.body[BODIES[c.body].n]=(a.body[BODIES[c.body].n]||0)+n;a.dt[DRIVES[c.dt].n]=(a.dt[DRIVES[c.dt].n]||0)+n;a.gb[GEARS[c.gb].n]=(a.gb[GEARS[c.gb].n]||0)+n;a.eng[ek]=(a.eng[ek]||0)+n;a.n+=n}
+    if(n){const a=S.ana,E=engById(c.eng),ek=LAYOUTS[E.layout].ev?'Electric':LAYOUTS[E.layout].n+'|'+E.fuel;
+      a.body[c.body]=(a.body[c.body]||0)+n;a.dt[c.dt]=(a.dt[c.dt]||0)+n;a.gb[c.gb]=(a.gb[c.gb]||0)+n;a.eng[ek]=(a.eng[ek]||0)+n;a.n+=n}
   }
   S.yr.me+=sold;mk.compU.forEach((u,i)=>S.yr.comp[i]+=u);
   const fixed=HQ[S.hq].up*inf+staffN()*55*inf,interest=S.money<0?-S.money*.0003:0;
@@ -662,26 +931,26 @@ function yearEnd(yr){
   S.lastYr={...S.yr,tot};S.yr={me:0,comp:S.comp.map(()=>0)};
   S.anaLast=S.ana;S.ana=newAna();
   for(const cp of S.comp){if(yr+1<cp.from)continue;const young=yr-cp.from<15?.012:0;for(const s of SEGK)cp.q[s]=clamp(cp.q[s]+rnd(-.02,.025)+young+(s==='green'&&yr>2000?.008:0),.2,.96)}
-  const born=S.comp.find(cp=>cp.from===yr+1);if(born)notify(`${born.n} (${born.tag}) enters the world market.`,true);
-  if(!S.won&&share>Math.max(...cs)){S.won=true;setTimeout(()=>modal(`<span class="tag y">${yr} results</span><h2>Market leader</h2><p>${esc(S.name)} sold more vehicles than any rival in ${yr} with ${pct(share)} of the world market. You are an automotive tycoon.</p>`,[['Keep playing','close',1]]),50)}
+  const born=S.comp.find(cp=>cp.from===yr+1);if(born)news('{name} ({tag}) enters the world market.',{name:born.n,tag:[born.tag]});
+  if(!S.won&&share>Math.max(...cs)){S.won=true;setTimeout(()=>modal(`<span class="tag y">${tx('{y} results',{y:yr})}</span><h2>${tx('Market leader')}</h2><p>${tx('{name} sold more vehicles than any rival in {y} with {share} of the world market. You are an automotive tycoon.',{name:esc(S.name),y:yr,share:pct(share)})}</p>`,[[tx('Keep playing'),'close',1]]),50)}
   const nt=TECH.filter(x=>x.y===yr+1&&!S.tech.includes(x.id));
-  if(nt.length)notify('New research available: '+nt.map(x=>x.n).join(', ')+'.',true);
+  if(nt.length)news('New research available: {list}.',{list:nt.map(x=>x.n)});
 }
 function checkEvents(){
-  for(const ev of EVENTS){if(S.evDone.includes(ev.id))continue;if(S.day>=dayOf(ev.y,ev.m)){S.evDone.push(ev.id);if(ev.mod)S.mods.push({...ev.mod,until:S.day+ev.mod.days,label:ev.t});notify(ev.t,true)}}
+  for(const ev of EVENTS){if(S.evDone.includes(ev.id))continue;if(S.day>=dayOf(ev.y,ev.m)){S.evDone.push(ev.id);if(ev.mod)S.mods.push({...ev.mod,until:S.day+ev.mod.days,label:ev.t});news(ev.t)}}
   if(S.day-dayOf(S.startY||1970,1)>200&&Math.random()<1/170)randomEvent();
 }
 function randomEvent(){
   const act=S.cars.filter(c=>c.prod>0),opts=[];
   const best=act.slice().sort((a,b)=>b.review-a.review)[0];
-  if(best&&best.review>=8)opts.push(()=>{S.rep=clamp(S.rep+4,0,100);S.aware=clamp(S.aware+.02,0,1);return `Car of the Year: the ${fullName(best)} wins the jury vote. Reputation and awareness up.`});
+  if(best&&best.review>=8)opts.push(()=>{S.rep=clamp(S.rep+4,0,100);S.aware=clamp(S.aware+.02,0,1);return ['Car of the Year: the {name} wins the jury vote. Reputation and awareness up.',{name:fullName(best)}]});
   const weak=act.find(c=>carStats(c).rel<62);
-  if(weak)opts.push(()=>{const cost=Math.max(20e3,weak.sold*.12*120)*I();S.money-=cost;S.rep=clamp(S.rep-3,0,100);return `Recall: the ${fullName(weak)} has a faulty part. Repairs cost ${fm(cost)} and dent your reputation.`});
-  if(act.length)opts.push(()=>{S.mods.push({prod:.5,until:S.day+14});return 'Workers strike at your plant. Output is halved for two weeks.'});
-  opts.push(()=>{S.mods.push({cost:.9,until:S.day+30});return 'A supplier offers bulk discounts: production costs down 10% this month.'});
-  if(act.length)opts.push(()=>{S.aware=clamp(S.aware+.015,0,1);return `A road-test video of the ${fullName(pick(act))} goes viral. Brand awareness up.`});
-  opts.push(()=>{const r=pick(S.comp.filter(c=>yearF()>=c.from));return `${r.n} unveils a new model line. Competition heats up.`});
-  notify(pick(opts)(),true);
+  if(weak)opts.push(()=>{const cost=Math.max(20e3,weak.sold*.12*120)*I();S.money-=cost;S.rep=clamp(S.rep-3,0,100);return ['Recall: the {name} has a faulty part. Repairs cost {cost} and dent your reputation.',{name:fullName(weak),cost:fm(cost)}]});
+  if(act.length)opts.push(()=>{S.mods.push({prod:.5,until:S.day+14});return ['Workers strike at your plant. Output is halved for two weeks.']});
+  opts.push(()=>{S.mods.push({cost:.9,until:S.day+30});return ['A supplier offers bulk discounts: production costs down 10% this month.']});
+  if(act.length)opts.push(()=>{S.aware=clamp(S.aware+.015,0,1);return ['A road-test video of the {name} goes viral. Brand awareness up.',{name:fullName(pick(act))}]});
+  opts.push(()=>{const r=pick(S.comp.filter(c=>yearF()>=c.from));return ['{name} unveils a new model line. Competition heats up.',{name:r.n}]});
+  const [k,p]=pick(opts)();news(k,p);
 }
 
 /* ============ LOOP ============ */
@@ -712,7 +981,7 @@ function carSVG(body,color,label){
   const s=SHAPES[body],wh=s.wh||[[82,16],[238,16]];
   const wheel=([x,r])=>{const cy=108-r;let sp='';for(let i=0;i<5;i++){const a=i*Math.PI*2/5-Math.PI/2;sp+=`M${x} ${cy} L${(x+Math.cos(a)*r*.55).toFixed(1)} ${(cy+Math.sin(a)*r*.55).toFixed(1)} `}
     return `<circle cx="${x}" cy="${cy}" r="${r+3.5}" fill="var(--arch)"/><circle cx="${x}" cy="${cy}" r="${r}" fill="var(--tyre)"/><circle cx="${x}" cy="${cy}" r="${(r*.62).toFixed(1)}" fill="var(--rim)"/><path d="${sp}" stroke="var(--tyre)" stroke-width="2.2" stroke-linecap="round"/><circle cx="${x}" cy="${cy}" r="${(r*.16).toFixed(1)}" fill="var(--tyre)"/>`};
-  let o=`<svg class="carpic" viewBox="0 0 320 116" role="img" aria-label="${esc(label||BODIES[body].n)}"><ellipse cx="160" cy="109" rx="152" ry="5" fill="var(--shadow)"/>`;
+  let o=`<svg class="carpic" viewBox="0 0 320 116" role="img" aria-label="${esc(label||tx(BODIES[body].n))}"><ellipse cx="160" cy="109" rx="152" ry="5" fill="var(--shadow)"/>`;
   if(s.box)o+=`<path d="${s.box}" fill="${color}" stroke="var(--ink)" stroke-opacity=".45" stroke-width="1.5"/><path d="${s.box}" fill="#fff" opacity=".4"/>`;
   o+=`<path d="${s.p}" fill="${color}" stroke="var(--ink)" stroke-opacity=".45" stroke-width="1.5" stroke-linejoin="round"/>`;
   o+=`<rect x="${s.x[0]}" y="84" width="${s.x[1]-s.x[0]}" height="9" fill="#000" opacity=".13"/>`;
@@ -727,7 +996,7 @@ function carSVG(body,color,label){
 }
 function engineDiagram(e){
   const L=LAYOUTS[e.layout];
-  if(L.ev)return `<svg viewBox="0 0 300 110" class="diag" role="img" aria-label="Electric motor"><rect x="70" y="25" width="140" height="60" rx="10" fill="var(--sunk)" stroke="var(--muted)" stroke-width="2"/><rect x="210" y="45" width="24" height="20" rx="3" fill="var(--rim)"/><path d="M146 32l-20 26h18l-10 22 30-32h-18l12-16z" fill="var(--accent)"/></svg><small>Electric motor · no firing order</small>`;
+  if(L.ev)return `<svg viewBox="0 0 300 110" class="diag" role="img" aria-label="${tx('Electric motor')}"><rect x="70" y="25" width="140" height="60" rx="10" fill="var(--sunk)" stroke="var(--muted)" stroke-width="2"/><rect x="210" y="45" width="24" height="20" rx="3" fill="var(--rim)"/><path d="M146 32l-20 26h18l-10 22 30-32h-18l12-16z" fill="var(--accent)"/></svg><small>${tx('Electric motor · no firing order')}</small>`;
   const n=L.rot||L.cyl,fo=L.fo,pos={};
   let W=300,H=120,extra='',lab='';
   if(L.k==='i'){const st=Math.min(46,240/Math.max(1,n-1));const x0=150-st*(n-1)/2;for(let i=1;i<=n;i++)pos[i]=[x0+(i-1)*st,52];extra=`<line x1="${x0-24}" x2="${x0+st*(n-1)+24}" y1="88" y2="88" stroke="var(--muted)" stroke-width="3"/>`;lab='Single bank, crankshaft below'}
@@ -737,20 +1006,20 @@ function engineDiagram(e){
     for(let i=1;i<=n;i++){const row=Math.floor((i-1)/per),ix=(i-1)%per;pos[i]=[x0+ix*st+(row%2)*st/2,ys[row]+4]}
     extra=`<line x1="${x0-20}" x2="${x0+st*per+10}" y1="64" y2="64" stroke="var(--muted)" stroke-width="3"/>`;lab='Four staggered rows: two narrow V banks on one crank'}
   else if(L.k==='r'){const st=Math.min(70,240/Math.max(1,n-1));const x0=150-st*(n-1)/2;for(let i=1;i<=n;i++)pos[i]=[x0+(i-1)*st,56];extra=`<line x1="${x0-34}" x2="${x0+st*(n-1)+34}" y1="56" y2="56" stroke="var(--muted)" stroke-width="3"/>`;lab='Rotors on one eccentric shaft'}
-  const r=L.k==='r'?22:Math.max(9,Math.min(17,130/n));
-  const T=1.8;
+  const r=L.k==='r'?22:Math.max(9,Math.min(17,130/n)),T=1.8;
   const cyls=fo.map((cy,ix)=>{const[x,y]=pos[cy];const sh=L.k==='r'?`<path d="M${x} ${y-r} L${(x+r*.87).toFixed(1)} ${(y+r*.5).toFixed(1)} L${(x-r*.87).toFixed(1)} ${(y+r*.5).toFixed(1)} Z" stroke-linejoin="round" class="cylf" style="animation-delay:${(ix*T/n).toFixed(2)}s"/>`:`<circle cx="${x.toFixed(1)}" cy="${y}" r="${r.toFixed(1)}" class="cylf" style="animation-delay:${(ix*T/n).toFixed(2)}s"/>`;
     return sh+`<text x="${x.toFixed(1)}" y="${y+4}" text-anchor="middle" class="cyln">${L.k==='r'?'R':''}${cy}</text>`}).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" class="diag" role="img" aria-label="${L.n} layout, firing order ${fo.join('-')}">${extra}${cyls}</svg><small>${lab}</small><div><span class="lbl">Firing order</span> <b>${fo.join('-')}</b></div>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="diag" role="img" aria-label="${tx(L.n)}, ${tx('Firing order')} ${fo.join('-')}">${extra}${cyls}</svg><small>${tx(lab)}</small><div><span class="lbl">${tx('Firing order')}</span> <b>${fo.join('-')}</b></div>`;
 }
 function meter(v,cls=''){return `<div class="meter ${cls}"><i style="width:${clamp(v,0,100).toFixed(0)}%"></i></div>`}
-function statRows(sc){return Object.keys(SCORE_N).map(k=>`<div class="stat"><span>${SCORE_N[k]}</span>${meter(sc[k])}<span>${Math.round(sc[k])}</span></div>`).join('')}
-function notify(t,news){
-  if(news&&S){S.news.unshift({d:S.day,t});S.news=S.news.slice(0,30)}
+function statRows(sc){return Object.keys(SCORE_N).map(k=>`<div class="stat"><span>${tx(SCORE_N[k])}</span>${meter(sc[k])}<span>${Math.round(sc[k])}</span></div>`).join('')}
+function notify(t){
   const el=document.createElement('div');el.className='toast';el.textContent=t;$('#toasts').append(el);
   setTimeout(()=>el.remove(),4200);
   while($('#toasts').children.length>2)$('#toasts').firstChild.remove();
 }
+function news(k,p){if(S){S.news.unshift({d:S.day,k,p});S.news=S.news.slice(0,30)}notify(tx(k,p))}
+const newsText=n=>n.k?tx(n.k,n.p):n.t;
 function modal(html,btns){
   closeModal();
   const bg=document.createElement('div');bg.className='modal-bg';bg.id='modal';
@@ -762,13 +1031,14 @@ function closeModal(){const m=$('#modal');if(m)m.remove()}
 /* ============ TOP & NAV ============ */
 function renderTop(){
   if(!S)return;
-  $('#top').innerHTML=`<div class="brand"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="var(--accent)" stroke="var(--ink)" stroke-width="2.5"/><circle cx="20" cy="20" r="7" fill="var(--ink)"/><path d="M20 2v11M20 27v11M2 20h11M27 20h11" stroke="var(--ink)" stroke-width="2.5"/></svg><div style="min-width:0"><b>${esc(S.name)}</b><small><span data-b="date">${dateStr(S.day)}</span> · <span class="diffchip">${DIFF[S.diff||'easy'].n}</span></small></div></div>
-  <div class="hstats"><div><small>Cash</small><b data-b="money"></b></div><div><small>Research pts</small><b data-b="rp"></b></div><div><small>Month P&amp;L</small><b data-b="pl"></b></div></div>
-  <div class="speed" role="group" aria-label="Game speed">${['❚❚','1×','3×','10×'].map((l,i)=>`<button data-a="speed:${i}" aria-pressed="${S.speed===i}" aria-label="${i?'Speed '+l:'Pause'}">${l}</button>`).join('')}</div>
-  <button class="iconbtn" data-a="menu" aria-label="Game menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>`;
+  $('#top').innerHTML=`<div class="brand"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="var(--accent)" stroke="var(--ink)" stroke-width="2.5"/><circle cx="20" cy="20" r="7" fill="var(--ink)"/><path d="M20 2v11M20 27v11M2 20h11M27 20h11" stroke="var(--ink)" stroke-width="2.5"/></svg><div style="min-width:0"><b>${esc(S.name)}</b><small><span data-b="date">${dateStr(S.day)}</span> · <span class="diffchip">${tx(DIFF[S.diff||'easy'].n)}</span></small></div></div>
+  <div class="hstats"><div><small>${tx('Cash')}</small><b data-b="money"></b></div><div><small>${tx('Research pts')}</small><b data-b="rp"></b></div><div><small>${tx('Month P&L')}</small><b data-b="pl"></b></div></div>
+  <div class="speed" role="group" aria-label="${tx('Game speed')}">${['❚❚','1×','3×','10×'].map((l,i)=>`<button data-a="speed:${i}" aria-pressed="${S.speed===i}" aria-label="${i?tx('Speed')+' '+l:tx('Pause')}">${l}</button>`).join('')}</div>
+  ${langSwitch()}
+  <button class="iconbtn" data-a="menu" aria-label="${tx('Game menu')}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>`;
   refreshLive();
 }
-function renderNav(){$('#nav').innerHTML=TABS.map(([k,l])=>`<button data-a="tab:${k}" ${tab===k?'aria-current="page"':''}>${icon(k)}<span>${l}</span></button>`).join('')}
+function renderNav(){$('#nav').innerHTML=TABS.map(([k,l])=>`<button data-a="tab:${k}" ${tab===k?'aria-current="page"':''}>${icon(k)}<span>${LANG==='bg'?NAVBG[k]:l}</span></button>`).join('')}
 const monthPL=()=>S.pl.reduce((a,b)=>a+b,0);
 function share(){const y=S.yr,tot=y.me+y.comp.reduce((a,b)=>a+b,0);if(tot<2000&&S.lastYr)return S.lastYr.tot?S.lastYr.me/S.lastYr.tot:0;return tot?y.me/tot:0}
 function liveVal(k){
@@ -800,152 +1070,161 @@ function refreshLive(){
   const cb=$('#capbar');if(cb)cb.style.width=clamp((S.used||0)/HQ[S.hq].cap*100,0,100)+'%';
   document.querySelectorAll('[data-stock]').forEach(el=>{const c=carById(el.dataset.stock);if(!c)return;
     const st=c.prod===0&&c.inv===0?['Not in production','']:c.block==='cash'&&c.inv<1?['No cash to build','bad']:c.block==='cap'&&c.inv<1?['Factory full','bad']:c.inv>Math.max(60,c.rate*45)?['Overstocked','bad']:c.inv<1&&c.dem>c.rate+1?['Sold out','y']:['Selling','good'];
-    el.className='tag '+st[1];el.textContent=st[0]});
+    el.className='tag '+st[1];el.textContent=tx(st[0])});
 }
 
 /* ============ VIEWS ============ */
-function renderView(){if(!S)return;$('#view').innerHTML=({hq:viewHQ,eng:viewEngines,cars:viewCars,market:viewMarket,lab:viewLab,race:viewRace})[tab]();refreshLive()}
+function renderView(){if(!S)return;document.documentElement.lang=LANG;$('#view').innerHTML=({hq:viewHQ,eng:viewEngines,cars:viewCars,market:viewMarket,lab:viewLab,race:viewRace})[tab]();refreshLive()}
 function coachTip(){
   const nxt=HQ[S.hq+1],inf=I();
-  if(!S.engines.length)return 'Every car needs an engine. Open Engines and design your first one.';
-  if(!S.cars.length)return 'Your engine is ready. Open Cars and design your first model around it.';
-  if(!S.cars.some(c=>c.prod>0))return 'Your model is ready. On the Cars tab, set its production to start building and selling.';
-  if(S.cars.some(c=>c.block==='cash'))return 'You are out of cash and credit, so the factory is building less. Lower production on weak sellers or raise prices.';
-  if(S.cars.some(c=>c.block==='cap'))return `You ordered more cars than your ${HQ[S.hq].n} can build, so every version gets a share. Lower some orders or upgrade HQ.`;
+  if(!S.engines.length)return tx('Every car needs an engine. Open Engines and design your first one.');
+  if(!S.cars.length)return tx('Your engine is ready. Open Cars and design your first model around it.');
+  if(!S.cars.some(c=>c.prod>0))return tx('Your model is ready. On the Cars tab, set its production to start building and selling.');
+  if(S.cars.some(c=>c.block==='cash'))return tx('You are out of cash and credit, so the factory is building less. Lower production on weak sellers or raise prices.');
+  if(S.cars.some(c=>c.block==='cap'))return tx('You ordered more cars than your {hq} can build, so every version gets a share. Lower some orders or upgrade HQ.',{hq:[HQ[S.hq].n]});
   const over=S.cars.find(c=>c.inv>Math.max(150,c.rate*60));
-  if(over)return `Unsold ${fullName(over)}s are piling up. Cut its production or lower the price.`;
-  if(nxt&&S.money>nxt.cost*inf*costMul()*1.25)return `You can afford the ${nxt.n}. Upgrade to raise capacity to ${fn(nxt.cap)} cars a day.`;
+  if(over)return tx('Unsold {name} cars are piling up. Cut its production or lower the price.',{name:fullName(over)});
+  if(nxt&&S.money>nxt.cost*inf*costMul()*1.25)return tx('You can afford the {hq}. Upgrade to raise capacity to {cap} cars a day.',{hq:[nxt.n],cap:fn(nxt.cap)});
   const tr=TECH.find(t=>!S.tech.includes(t.id)&&t.y<=yearF()&&S.rp>=t.rp&&S.money>t.c*inf*costMul());
-  if(tr)return `${tr.n} is ready to research.`;
-  if(S.aware<.15&&S.money>200e3*inf)return 'Few buyers know your brand yet. A marketing campaign will help.';
-  return 'Check the Market tab for segments where rivals are weak, then design a model or a new version for them.';
+  if(tr)return tx('{name} is ready to research.',{name:[tr.n]});
+  if(S.aware<.15&&S.money>200e3*inf)return tx('Few buyers know your brand yet. A marketing campaign will help.');
+  return tx('Check the Market tab for segments where rivals are weak, then design a model or a new version for them.');
 }
 function sparkline(vals){
-  if(vals.length<2)return '<p class="muted">The cash chart fills in month by month.</p>';
+  if(vals.length<2)return `<p class="muted">${tx('The cash chart fills in month by month.')}</p>`;
   const W=600,H=120,mn=Math.min(0,...vals),mx=Math.max(...vals,1),sx=W/(vals.length-1),sy=v=>H-6-(v-mn)/(mx-mn)*(H-12);
   const pts=vals.map((v,i)=>`${(i*sx).toFixed(1)},${sy(v).toFixed(1)}`).join(' '),z=sy(0),last=vals[vals.length-1];
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Cash over the last ${vals.length} months"><line x1="0" x2="${W}" y1="${z}" y2="${z}" stroke="var(--line)" stroke-dasharray="4 4"/><polygon points="0,${z} ${pts} ${W},${z}" fill="var(--accent)" opacity=".22"/><polyline points="${pts}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linejoin="round"/><circle cx="${W}" cy="${sy(last)}" r="5" fill="var(--green)"/></svg><div class="spread"><small>${vals.length} months ago</small><small>Now · ${fm(last)}</small></div>`;
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${tx('Cash over the last {n} months',{n:vals.length})}"><line x1="0" x2="${W}" y1="${z}" y2="${z}" stroke="var(--line)" stroke-dasharray="4 4"/><polygon points="0,${z} ${pts} ${W},${z}" fill="var(--accent)" opacity=".22"/><polyline points="${pts}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linejoin="round"/><circle cx="${W}" cy="${sy(last)}" r="5" fill="var(--green)"/></svg><div class="spread"><small>${tx('{n} months ago',{n:vals.length})}</small><small>${tx('Now')} · ${fm(last)}</small></div>`;
 }
 function viewHQ(){
   const h=HQ[S.hq],nx=HQ[S.hq+1],inf=I(),cm=costMul();
   const camp=CAMPAIGNS.map(c=>{const cost=c.c*inf*cm,act=S.mkt.find(m=>m.id===c.id&&m.until>S.day),lock=S.hq<c.hq;
-    return `<div class="tech"><div><b>${c.n}</b></div><button class="btn sm ${act?'ghost':''}" data-a="mkt:${c.id}" ${act||lock||S.money<cost?'disabled':''}>${act?'Running':lock?'Needs '+HQ[c.hq].n:fm(cost)}</button><p>+${(c.a*100).toFixed(0)} pts awareness · sales ×${c.b} for ${c.d} days</p></div>`}).join('');
-  const staff=Object.entries(ROLES).map(([k,r])=>`<div class="tech"><div><b>${r.n}</b> <span class="tag">${S.staff[k]}</span></div><div class="row" style="gap:6px"><button class="btn sm ghost" data-a="fire:${k}" ${S.staff[k]?'':'disabled'} aria-label="Let one go">−</button><button class="btn sm" data-a="hire:${k}" ${staffN()>=h.staff||S.money<hireCost(k)?'disabled':''}>Hire ${fm(hireCost(k))}</button></div><p>${r.d}. Each hire costs 20% more than the last.</p></div>`).join('');
+    return `<div class="tech"><div><b>${tx(c.n)}</b></div><button class="btn sm ${act?'ghost':''}" data-a="mkt:${c.id}" ${act||lock||S.money<cost?'disabled':''}>${act?tx('Running'):lock?tx('Needs {hq}',{hq:[HQ[c.hq].n]}):fm(cost)}</button><p>${tx('+{a} pts awareness · sales ×{b} for {d} days',{a:(c.a*100).toFixed(0),b:dec(c.b,2).replace(/0$/,''),d:c.d})}</p></div>`}).join('');
+  const staff=Object.entries(ROLES).map(([k,r])=>`<div class="tech"><div><b>${tx(r.n)}</b> <span class="tag">${S.staff[k]}</span></div><div class="row" style="gap:6px"><button class="btn sm ghost" data-a="fire:${k}" ${S.staff[k]?'':'disabled'} aria-label="${tx('Let one go')}">−</button><button class="btn sm" data-a="hire:${k}" ${staffN()>=h.staff||S.money<hireCost(k)?'disabled':''}>${tx('Hire')} ${fm(hireCost(k))}</button></div><p>${tx(r.d)}. ${tx('Each hire costs 20% more than the last.')}</p></div>`).join('');
   const mods=activeMods().filter(m=>m.label);
-  return `<div class="coach"><b>Next</b><span>${coachTip()}</span></div>
+  return `<div class="coach"><b>${tx('Next')}</b><span>${coachTip()}</span></div>
   <div class="kpis">
-    <div class="kpi"><small>Cash</small><b data-b="money"></b><span class="sub">Credit line ${fm(creditLimit())}</span></div>
-    <div class="kpi"><small>Last 30 days</small><b data-b="pl"></b><span class="sub">profit after all costs</span></div>
-    <div class="kpi"><small>Market share</small><b data-b="share"></b><span class="sub">of world vehicle sales</span></div>
-    <div class="kpi"><small>Reputation</small><b data-b="rep"></b><span class="sub">from reviews & racing</span></div>
-    <div class="kpi"><small>Brand awareness</small><b data-b="aware"></b><span class="sub">buyers who know you</span></div>
-    <div class="kpi"><small>Vehicles sold</small><b data-b="ytd"></b><span class="sub">this year so far</span></div>
+    <div class="kpi"><small>${tx('Cash')}</small><b data-b="money"></b><span class="sub">${tx('Credit line {v}',{v:fm(creditLimit())})}</span></div>
+    <div class="kpi"><small>${tx('Last 30 days')}</small><b data-b="pl"></b><span class="sub">${tx('profit after all costs')}</span></div>
+    <div class="kpi"><small>${tx('Market share')}</small><b data-b="share"></b><span class="sub">${tx('of world vehicle sales')}</span></div>
+    <div class="kpi"><small>${tx('Reputation')}</small><b data-b="rep"></b><span class="sub">${tx('from reviews & racing')}</span></div>
+    <div class="kpi"><small>${tx('Brand awareness')}</small><b data-b="aware"></b><span class="sub">${tx('buyers who know you')}</span></div>
+    <div class="kpi"><small>${tx('Vehicles sold')}</small><b data-b="ytd"></b><span class="sub">${tx('this year so far')}</span></div>
   </div>
   <div class="grid">
     <section class="card">
-      <div class="spread"><div><small>Headquarters · level ${S.hq} of 5</small><h3>${h.n}</h3></div><div class="pips">${[1,2,3,4,5].map(i=>`<i class="${i<=S.hq?'on':''}"></i>`).join('')}</div></div>
-      <div><div class="spread"><small>Built today</small><small data-b="cap"></small></div><div class="meter y"><i id="capbar" style="width:0"></i></div></div>
-      <div class="dl"><div><small>Staff</small><b>${staffN()} / ${h.staff}</b></div><div><small>Upkeep</small><b>${fm(h.up*inf*30)}/mo</b></div><div><small>Salaries</small><b>${fm(staffN()*55*inf*30)}/mo</b></div></div>
-      ${nx?`<button class="btn primary" data-a="upgrade" ${S.money<nx.cost*inf*cm?'disabled':''}>Upgrade to ${nx.n} · ${fm(nx.cost*inf*cm)}</button><small>${fn(nx.cap)} cars/day · ${nx.staff} staff</small>`:'<span class="tag y">Fully upgraded</span>'}
+      <div class="spread"><div><small>${tx('Headquarters · level {n} of 5',{n:S.hq})}</small><h3>${tx(h.n)}</h3></div><div class="pips">${[1,2,3,4,5].map(i=>`<i class="${i<=S.hq?'on':''}"></i>`).join('')}</div></div>
+      <div><div class="spread"><small>${tx('Built today')}</small><small data-b="cap"></small></div><div class="meter y"><i id="capbar" style="width:0"></i></div></div>
+      <div class="dl"><div><small>${tx('Staff')}</small><b>${staffN()} / ${h.staff}</b></div><div><small>${tx('Upkeep')}</small><b>${fm(h.up*inf*30)}${tx('/mo')}</b></div><div><small>${tx('Salaries')}</small><b>${fm(staffN()*55*inf*30)}${tx('/mo')}</b></div></div>
+      ${nx?`<button class="btn primary" data-a="upgrade" ${S.money<nx.cost*inf*cm?'disabled':''}>${tx('Upgrade to {hq}',{hq:[nx.n]})} · ${fm(nx.cost*inf*cm)}</button><small>${tx('{cap} cars/day · {staff} staff',{cap:fn(nx.cap),staff:nx.staff})}</small>`:`<span class="tag y">${tx('Fully upgraded')}</span>`}
     </section>
-    <section class="card"><div><small>Cash, monthly</small><h3>Bank balance</h3></div>${sparkline(S.hist.slice(-60))}</section>
+    <section class="card"><div><small>${tx('Cash, monthly')}</small><h3>${tx('Bank balance')}</h3></div>${sparkline(S.hist.slice(-60))}</section>
   </div>
   <div class="grid">
-    <section class="card"><h3>Staff</h3>${staff}</section>
-    <section class="card"><div class="spread"><h3>Marketing</h3>${mktBoost()>1?`<span class="tag good">Sales ×${mktBoost()}</span>`:''}</div>${camp}</section>
+    <section class="card"><h3>${tx('Staff')}</h3>${staff}</section>
+    <section class="card"><div class="spread"><h3>${tx('Marketing')}</h3>${mktBoost()>1?`<span class="tag good">${tx('Sales')} ×${dec(mktBoost(),2).replace(/0$/,'')}</span>`:''}</div>${camp}</section>
   </div>
-  <section class="card"><div class="spread"><h3>News</h3>${mods.length?`<span class="tag bad">${mods.length} market event${mods.length>1?'s':''} active</span>`:''}</div>
-    <div class="news">${S.news.slice(0,10).map(n=>`<div><small>${dateStr(n.d)}</small><span>${esc(n.t)}</span></div>`).join('')}</div></section>`;
+  <section class="card"><div class="spread"><h3>${tx('News')}</h3>${mods.length?`<span class="tag bad">${plural(mods.length,'{n} market event active','{n} market events active')}</span>`:''}</div>
+    <div class="news">${S.news.slice(0,10).map(n=>`<div><small>${dateStr(n.d)}</small><span>${esc(newsText(n))}</span></div>`).join('')}</div></section>`;
 }
 function engCard(e){
   const s=engStats(e),L=LAYOUTS[e.layout];
   const used=new Set(S.cars.filter(c=>c.eng===e.id).map(c=>c.model)).size;
-  const parts=s.ev?['Battery-electric']:[FUELS[e.fuel].n,s.rot?'Rotary':VALVES[e.valve].n,INJ[e.inj].n,e.turbos?`${e.turbos}× turbo @ ${e.boost.toFixed(1)} bar`:'',e.sc&&e.sc!=='none'?SCS[e.sc].n+' supercharger':'',EMATS[e.mat].n].filter(Boolean);
-  return `<article class="card"><div class="spread"><div><small>${L.n} · ${e.year}</small><h3>${esc(e.name)}</h3></div>${used?`<span class="tag">${used} model${used>1?'s':''}</span>`:''}</div>
-  <div class="dl"><div><small>Power</small><b>${fn(s.hp)} hp</b></div><div><small>Torque</small><b>${fn(s.tq)} Nm</b></div><div><small>${s.ev?'Motor':'Displacement'}</small><b>${s.ev?'Electric':s.L.toFixed(1)+' L'}</b></div><div><small>Weight</small><b>${s.w} kg</b></div><div><small>Reliability</small><b>${s.rel}</b></div><div><small>Unit cost</small><b>${fm(s.cost*I()*unitMul())}</b></div></div>
-  <small>${parts.join(' · ')}${L.fo?' · firing order '+L.fo.join('-'):''}</small></article>`;
+  const parts=s.ev?[tx('Battery-electric')]:[tx(FUELS[e.fuel].n),s.rot?tx('Rotary'):tx(VALVES[e.valve].n),tx(INJ[e.inj].n),e.turbos?tx('{n}× turbo @ {b} bar',{n:e.turbos,b:dec(e.boost,1)}):'',e.sc&&e.sc!=='none'?tx('{size} supercharger',{size:[SCS[e.sc].n]}):'',tx(EMATS[e.mat].n)].filter(Boolean);
+  return `<article class="card"><div class="spread"><div><small>${tx(L.n)} · ${e.year}</small><h3>${esc(e.name)}</h3></div>${used?`<span class="tag">${plural(used,'{n} model','{n} models')}</span>`:''}</div>
+  <div class="dl"><div><small>${tx('Power')}</small><b>${tx('{v} hp',{v:fn(s.hp)})}</b></div><div><small>${tx('Torque')}</small><b>${tx('{v} Nm',{v:fn(s.tq)})}</b></div><div><small>${s.ev?tx('Motor'):tx('Displacement')}</small><b>${s.ev?tx('Electric'):dec(s.L,1)+' '+tx('L')}</b></div><div><small>${tx('Weight')}</small><b>${tx('{v} kg',{v:s.w})}</b></div><div><small>${tx('Reliability')}</small><b>${s.rel}</b></div><div><small>${tx('Unit cost')}</small><b>${fm(s.cost*I()*unitMul())}</b></div></div>
+  <small>${parts.join(' · ')}${L.fo?' · '+tx('firing order')+' '+L.fo.join('-'):''}</small></article>`;
 }
 function viewEngines(){
-  return `<div class="sect-h"><div><small>${S.engines.length} engine${S.engines.length===1?'':'s'}</small><h2>Engines</h2></div><button class="btn primary" data-a="newEngine">Design engine</button></div>
-  ${S.engines.length?`<div class="grid">${S.engines.slice().reverse().map(engCard).join('')}</div>`:'<div class="card"><h3>No engines yet</h3><p class="muted" style="margin:0">Pick a layout and fuel, size the cylinders and choose the tech. Small four-cylinders are cheap and reliable; big diesels move trucks; V8s sell sports and luxury cars.</p><button class="btn primary" data-a="newEngine">Design your first engine</button></div>'}`;
+  return `<div class="sect-h"><div><small>${plural(S.engines.length,'{n} engine','{n} engines')}</small><h2>${tx('Engines')}</h2></div><button class="btn primary" data-a="newEngine">${tx('Design engine')}</button></div>
+  ${S.engines.length?`<div class="grid">${S.engines.slice().reverse().map(engCard).join('')}</div>`:`<div class="card"><h3>${tx('No engines yet')}</h3><p class="muted" style="margin:0">${tx('Pick a layout and fuel, size the cylinders and choose the tech. Small four-cylinders are cheap and reliable; big diesels move trucks; V8s sell sports and luxury cars.')}</p><button class="btn primary" data-a="newEngine">${tx('Design your first engine')}</button></div>`}`;
 }
 function trimBlock(c){
   const st=carStats(c),inf=I(),unit=st.cost*inf*modCost(),margin=c.price*inf-unit,cap=HQ[S.hq].cap,lim=emisLimit(yearF()),E=engById(c.eng);
   return `<div class="trim">
-  <div class="spread"><div style="min-width:0"><b class="trimname">${esc(c.trim||'Standard')}</b> <small>review ${c.review.toFixed(1)}/10</small><div class="muted" style="font-size:.85rem">${esc(engDesc(E))} · ${GEARS[c.gb].n} · ${DRIVES[c.dt].n}${c.lsd?' + LSD':''}</div></div><span data-stock="${c.id}" class="tag"></span></div>
-  <div class="dl"><div><small>Built / day</small><b data-b="built:${c.id}"></b></div><div><small>In stock</small><b data-b="inv:${c.id}"></b></div><div><small>Sold / day</small><b data-b="rate:${c.id}"></b></div><div><small>Demand / day</small><b data-b="dem:${c.id}"></b></div><div><small>Margin / car</small><b class="${margin>=0?'pos':'neg'}">${fm(margin)}</b></div></div>
-  ${lim&&st.emis>lim?`<span class="tag bad">${st.emis} g/km is over the ${Math.round(lim)} g/km limit</span>`:''}
-  <div class="field"><div class="spread"><label class="lbl" for="pn-${c.id}">Production per day</label><input type="number" inputmode="numeric" class="num" id="pn-${c.id}" data-i="prodn:${c.id}" min="0" max="${cap}" value="${Math.min(c.prod,cap)}"></div><input type="range" id="prod-${c.id}" data-i="prod:${c.id}" min="0" max="${cap}" step="1" value="${Math.min(c.prod,cap)}" aria-label="Production per day"></div>
-  <div class="row"><div class="field" style="flex:1"><label class="lbl" for="price-${c.id}">Price (follows inflation)</label><input type="number" id="price-${c.id}" data-i="price:${c.id}" min="1" step="10" value="${Math.round(c.price*inf/10)*10}"></div><div class="field" style="flex:1"><small>Build cost</small><b style="padding:10px 0">${fm(unit)}</b></div></div>
-  <div class="row"><button class="btn sm ghost" data-a="detail:${c.id}">Specs</button><button class="btn sm ghost" data-a="retire:${c.id}">Retire</button><small style="margin-left:auto">Sold total <span data-b="sold:${c.id}"></span></small></div>
+  <div class="spread"><div style="min-width:0"><b class="trimname">${esc(c.trim||tx('Standard'))}</b> <small>${tx('review {v}/10',{v:dec(c.review,1)})}</small><div class="muted" style="font-size:.85rem">${esc(engDesc(E))} · ${tx(GEARS[c.gb].n)} · ${tx(DRIVES[c.dt].n)}${c.lsd?' + LSD':''}</div></div><span data-stock="${c.id}" class="tag"></span></div>
+  <div class="dl"><div><small>${tx('Built / day')}</small><b data-b="built:${c.id}"></b></div><div><small>${tx('In stock')}</small><b data-b="inv:${c.id}"></b></div><div><small>${tx('Sold / day')}</small><b data-b="rate:${c.id}"></b></div><div><small>${tx('Demand / day')}</small><b data-b="dem:${c.id}"></b></div><div><small>${tx('Margin / car')}</small><b class="${margin>=0?'pos':'neg'}">${fm(margin)}</b></div></div>
+  ${lim&&st.emis>lim?`<span class="tag bad">${tx('{v} g/km is over the {lim} g/km limit',{v:st.emis,lim:Math.round(lim)})}</span>`:''}
+  <div class="field"><div class="spread"><label class="lbl" for="pn-${c.id}">${tx('Production per day')}</label><input type="number" inputmode="numeric" class="num" id="pn-${c.id}" data-i="prodn:${c.id}" min="0" max="${cap}" value="${Math.min(c.prod,cap)}"></div><input type="range" id="prod-${c.id}" data-i="prod:${c.id}" min="0" max="${cap}" step="1" value="${Math.min(c.prod,cap)}" aria-label="${tx('Production per day')}"></div>
+  <div class="row"><div class="field" style="flex:1"><label class="lbl" for="price-${c.id}">${tx('Price (follows inflation)')}</label><input type="number" id="price-${c.id}" data-i="price:${c.id}" min="1" step="10" value="${Math.round(c.price*inf/10)*10}"></div><div class="field" style="flex:1"><small>${tx('Build cost')}</small><b style="padding:10px 0">${fm(unit)}</b></div></div>
+  <div class="row"><button class="btn sm ghost" data-a="detail:${c.id}">${tx('Specs')}</button><button class="btn sm ghost" data-a="retire:${c.id}">${tx('Retire')}</button><small style="margin-left:auto">${tx('Sold total')} <span data-b="sold:${c.id}"></span></small></div>
   </div>`;
 }
 function viewCars(){
   const models=[...new Set(S.cars.map(c=>c.model))];
   const card=m=>{const vs=S.cars.filter(c=>c.model===m),f=vs[0];
-    return `<article class="card carcard"><div class="spread"><div><small>${BODIES[f.body].n} · ${Math.floor(f.year)} · ${vs.length} version${vs.length>1?'s':''}</small><h3>${esc(f.mname)}</h3></div></div>
+    return `<article class="card carcard"><div class="spread"><div><small>${tx(BODIES[f.body].n)} · ${Math.floor(f.year)} · ${plural(vs.length,'{n} version','{n} versions')}</small><h3>${esc(f.mname)}</h3></div></div>
     <div class="pic">${carSVG(f.body,f.color,f.mname)}</div>${vs.map(trimBlock).join('')}
-    <button class="btn" data-a="addTrim:${m}">Add a version</button></article>`};
-  return `<div class="sect-h"><div><small>Factory: <span data-b="want"></span> ordered · ${fn(HQ[S.hq].cap)} cars/day capacity, shared</small><h2>Cars</h2></div><button class="btn primary" data-a="newCar">Design car</button></div>
-  ${models.length?`<div class="grid">${models.slice().reverse().map(card).join('')}</div>`:`<div class="card"><h3>No models yet</h3><p class="muted" style="margin:0">${S.engines.length?'Choose a body, fit one of your engines and set a price.':'You need an engine first.'}</p><button class="btn primary" data-a="${S.engines.length?'newCar':'tab:eng'}">${S.engines.length?'Design your first car':'Go to Engines'}</button></div>`}`;
+    <button class="btn" data-a="addTrim:${m}">${tx('Add a version')}</button></article>`};
+  return `<div class="sect-h"><div><small>${tx('Factory: {want} ordered · {cap} cars/day capacity, shared',{want:'<span data-b="want"></span>',cap:fn(HQ[S.hq].cap)})}</small><h2>${tx('Cars')}</h2></div><button class="btn primary" data-a="newCar">${tx('Design car')}</button></div>
+  ${models.length?`<div class="grid">${models.slice().reverse().map(card).join('')}</div>`:`<div class="card"><h3>${tx('No models yet')}</h3><p class="muted" style="margin:0">${S.engines.length?tx('Choose a body, fit one of your engines and set a price.'):tx('You need an engine first.')}</p><button class="btn primary" data-a="${S.engines.length?'newCar':'tab:eng'}">${S.engines.length?tx('Design your first car'):tx('Go to Engines')}</button></div>`}`;
 }
-function anaBlock(title,obj){
+function anaLabel(kind,k){
+  if(kind==='body')return BODIES[k]?tx(BODIES[k].n):tx(k);
+  if(kind==='dt')return DRIVES[k]?tx(DRIVES[k].n):tx(k);
+  if(kind==='gb')return GEARS[k]?tx(GEARS[k].n):tx(k);
+  if(kind==='eng'){if(k==='Electric')return tx('Electric');const[l,f]=k.split('|');return f?tx(l)+' '+tx(FUELS[f]?FUELS[f].n:f).toLowerCase():tx(k)}
+  return k;
+}
+function anaBlock(title,kind,obj){
   const ent=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,5),tot=Object.values(obj).reduce((a,b)=>a+b,0)||1,mx=ent.length?ent[0][1]:1;
-  return `<div class="sect"><span class="lbl">${title}</span>${ent.length?ent.map(([k,v],i)=>`<div><div class="spread"><span>${i===0?'<b>':''}${esc(k)}${i===0?'</b>':''}</span><small>${fn(v)} · ${pct(v/tot)}</small></div><div class="meter ${i===0?'y':''}"><i style="width:${(v/mx*100).toFixed(1)}%"></i></div></div>`).join(''):'<small class="muted">No sales yet</small>'}</div>`;
+  return `<div class="sect"><span class="lbl">${tx(title)}</span>${ent.length?ent.map(([k,v],i)=>`<div><div class="spread"><span>${i===0?'<b>':''}${esc(anaLabel(kind,k))}${i===0?'</b>':''}</span><small>${fn(v)} · ${pct(v/tot)}</small></div><div class="meter ${i===0?'y':''}"><i style="width:${(v/mx*100).toFixed(1)}%"></i></div></div>`).join(''):`<small class="muted">${tx('No sales yet')}</small>`}</div>`;
 }
 function viewMarket(){
   const y=yearF(),stats={};S.cars.forEach(c=>stats[c.id]=carStats(c,y));
   const mk=solveMarket(y,stats);
-  const rows=SEGK.map(s=>{const si=mk.segInfo[s];if(!si.size)return `<tr><td>${SEGS[s].n}</td><td class="n muted" colspan="3">Emerges late 1990s</td></tr>`;
+  const rows=SEGK.map(s=>{const si=mk.segInfo[s];if(!si.size)return `<tr><td>${tx(SEGS[s].n)}</td><td class="n muted" colspan="3">${tx('Emerges late 1990s')}</td></tr>`;
     const tot=si.me+si.comp.reduce((a,b)=>a+b,0);const bi=si.comp.indexOf(Math.max(...si.comp));
-    return `<tr><td><b>${SEGS[s].n}</b></td><td class="n">${fn(si.size)}</td><td class="n">${pct(si.me/tot)}</td><td><span class="dot" style="background:${S.comp[bi].c}"></span>${S.comp[bi].n.split(' ')[0]} ${pct(si.comp[bi]/tot)}</td></tr>`}).join('');
+    return `<tr><td><b>${tx(SEGS[s].n)}</b></td><td class="n">${fn(si.size)}</td><td class="n">${pct(si.me/tot)}</td><td><span class="dot" style="background:${S.comp[bi].c}"></span>${S.comp[bi].n.split(' ')[0]} ${pct(si.comp[bi]/tot)}</td></tr>`}).join('');
   const src=S.yr.me+S.yr.comp.reduce((a,b)=>a+b,0)>2000?S.yr:(S.lastYr||S.yr);
   const tot=src.me+src.comp.reduce((a,b)=>a+b,0)||1;
   const board=[{n:S.name,tag:'You',c:'var(--accent)',u:src.me,me:1},...S.comp.map((cp,i)=>({n:cp.n,tag:cp.tag,c:cp.c,u:src.comp[i]||0,off:y<cp.from}))].filter(b=>!b.off).sort((a,b)=>b.u-a.u);
   const mx=board[0].u||1;
   const yrs=S.years.slice(-40);
-  let chart='<p class="muted">Your yearly share appears here after the first full year.</p>';
+  let chart=`<p class="muted">${tx('Your yearly share appears here after the first full year.')}</p>`;
   if(yrs.length>=2){const W=600,H=150,mxs=Math.max(.05,...yrs.map(r=>Math.max(r.share,...r.cs.map(v=>v||0))));const sx=W/(yrs.length-1),sy=v=>H-8-v/mxs*(H-16);
     const line=(arr,col,w)=>`<polyline points="${arr.map((v,i)=>`${(i*sx).toFixed(1)},${sy(v||0).toFixed(1)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linejoin="round"/>`;
-    chart=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Market share by year"><line x1="0" x2="${W}" y1="${sy(0)}" y2="${sy(0)}" stroke="var(--line)"/>${S.comp.map((cp,i)=>line(yrs.map(r=>r.cs[i]),cp.c,1.5)).join('')}${line(yrs.map(r=>r.share),'var(--ink)',3.5)}</svg><div class="spread"><small>${yrs[0].y}</small><small>Bold line: ${esc(S.name)}</small><small>${yrs[yrs.length-1].y}</small></div>`}
+    chart=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="${tx('Market share by year')}"><line x1="0" x2="${W}" y1="${sy(0)}" y2="${sy(0)}" stroke="var(--line)"/>${S.comp.map((cp,i)=>line(yrs.map(r=>r.cs[i]),cp.c,1.5)).join('')}${line(yrs.map(r=>r.share),'var(--ink)',3.5)}</svg><div class="spread"><small>${yrs[0].y}</small><small>${tx('Bold line: {name}',{name:esc(S.name)})}</small><small>${yrs[yrs.length-1].y}</small></div>`}
   const ana=S.ana.n>0?S.ana:(S.anaLast||S.ana);
-  return `<div class="sect-h"><div><small>World market · ${curYear()}</small><h2>Market</h2></div><span class="tag">Emission limit ${emisLimit(y)?Math.round(emisLimit(y))+' g/km':'none yet'}</span></div>
-  <section class="card"><div class="spread"><h3>Your best sellers</h3><small>${ana===S.ana?'This year so far':'Last year'} · ${fn(ana.n)} vehicles</small></div>
-   <div class="anagrid">${anaBlock('Body',ana.body)}${anaBlock('Engine',ana.eng)}${anaBlock('Gearbox',ana.gb)}${anaBlock('Drivetrain',ana.dt)}</div></section>
+  const per=a=>a===S.ana?tx('This year so far'):tx('Last year');
+  const lim=emisLimit(y);
+  return `<div class="sect-h"><div><small>${tx('World market · {y}',{y:curYear()})}</small><h2>${tx('Market')}</h2></div><span class="tag">${lim?tx('Emission limit {v} g/km',{v:Math.round(lim)}):tx('No emission limit yet')}</span></div>
+  <section class="card"><div class="spread"><h3>${tx('Your best sellers')}</h3><small>${per(ana)} · ${plural(ana.n,'{n} vehicle','{n} vehicles').replace(String(ana.n),fn(ana.n))}</small></div>
+   <div class="anagrid">${anaBlock('Body','body',ana.body)}${anaBlock('Engine','eng',ana.eng)}${anaBlock('Gearbox','gb',ana.gb)}${anaBlock('Drivetrain','dt',ana.dt)}</div></section>
   <div class="grid">
-   <section class="card"><h3>Manufacturers</h3><small>${src===S.yr?'This year so far':'Last year'} · vehicles sold</small>
-    <div class="track">${board.map(b=>`<div><div class="spread"><span>${b.me?'<b>':''}${esc(b.n)}${b.me?'</b>':''} <small>${esc(b.tag)}</small></span><small>${fn(b.u)} · ${pct(b.u/tot)}</small></div><div class="meter"><i style="width:${(b.u/mx*100).toFixed(1)}%;background:${b.c}"></i></div></div>`).join('')}</div></section>
-   <section class="card"><h3>Share history</h3>${chart}</section>
+   <section class="card"><h3>${tx('Manufacturers')}</h3><small>${src===S.yr?tx('This year so far'):tx('Last year')} · ${tx('vehicles sold')}</small>
+    <div class="track">${board.map(b=>`<div><div class="spread"><span>${b.me?'<b>':''}${esc(b.n)}${b.me?'</b>':''} <small>${esc(tx(b.tag))}</small></span><small>${fn(b.u)} · ${pct(b.u/tot)}</small></div><div class="meter"><i style="width:${(b.u/mx*100).toFixed(1)}%;background:${b.c}"></i></div></div>`).join('')}</div></section>
+   <section class="card"><h3>${tx('Share history')}</h3>${chart}</section>
   </div>
-  <section class="card"><h3>Segments</h3><small>Daily buyers worldwide and who wins them</small><div class="tbl"><table><thead><tr><th>Segment</th><th class="n">Buyers/day</th><th class="n">You</th><th>Leader</th></tr></thead><tbody>${rows}</tbody></table></div></section>
-  ${activeMods().filter(m=>m.label).map(m=>`<div class="card"><span class="tag bad">Until ${dateStr(m.until)}</span><span>${esc(m.label)}</span></div>`).join('')}`;
+  <section class="card"><h3>${tx('Segments')}</h3><small>${tx('Daily buyers worldwide and who wins them')}</small><div class="tbl"><table><thead><tr><th>${tx('Segment')}</th><th class="n">${tx('Buyers/day')}</th><th class="n">${tx('You')}</th><th>${tx('Leader')}</th></tr></thead><tbody>${rows}</tbody></table></div></section>
+  ${activeMods().filter(m=>m.label).map(m=>`<div class="card"><span class="tag bad">${tx('Until {d}',{d:dateStr(m.until)})}</span><span>${esc(tx(m.label))}</span></div>`).join('')}`;
 }
 function viewLab(){
   const y=yearF(),inf=I(),cm=costMul();
   const done=TECH.filter(t=>S.tech.includes(t.id));
   const avail=TECH.filter(t=>!S.tech.includes(t.id)&&t.y<=y);
   const soon=TECH.filter(t=>!S.tech.includes(t.id)&&t.y>y).slice(0,6);
-  const item=(t,st)=>{const ok=S.rp>=t.rp&&S.money>=t.c*inf*cm;return `<div class="tech"><div><b>${t.n}</b> <span class="tag">${t.g}</span></div>${st==='a'?`<button class="btn sm ${ok?'primary':''}" data-a="research:${t.id}" ${ok?'':'disabled'}>${t.rp} RP · ${fm(t.c*inf*cm)}</button>`:`<span class="tag">From ${t.y}</span>`}<p>${t.d}</p></div>`};
-  return `<div class="sect-h"><div><small>${fn(S.rp)} research points · +${((.2+S.staff.eng*.2)*rpMul()).toFixed(2)}/day</small><h2>Research</h2></div></div>
+  const item=(t,st)=>{const ok=S.rp>=t.rp&&S.money>=t.c*inf*cm;return `<div class="tech"><div><b>${tx(t.n)}</b> <span class="tag">${tx(t.g)}</span></div>${st==='a'?`<button class="btn sm ${ok?'primary':''}" data-a="research:${t.id}" ${ok?'':'disabled'}>${t.rp} ${tx('RP')} · ${fm(t.c*inf*cm)}</button>`:`<span class="tag">${tx('From {y}',{y:t.y})}</span>`}<p>${tx(t.d)}</p></div>`};
+  return `<div class="sect-h"><div><small>${tx('{n} research points · +{r}/day',{n:fn(S.rp),r:dec((.2+S.staff.eng*.2)*rpMul(),2)})}</small><h2>${tx('Research')}</h2></div></div>
   <div class="grid">
-   <section class="card"><h3>Available</h3>${avail.length?avail.map(t=>item(t,'a')).join(''):'<p class="muted">Nothing new right now. More technology arrives as the years pass.</p>'}</section>
-   <section class="card"><h3>Coming soon</h3>${soon.map(t=>item(t,'s')).join('')||'<p class="muted">You have seen every technology.</p>'}${done.length?`<h3 style="margin-top:10px">Researched (${done.length})</h3><div class="chips">${done.map(t=>`<span class="tag good">${t.n}</span>`).join('')}</div>`:''}</section>
+   <section class="card"><h3>${tx('Available')}</h3>${avail.length?avail.map(t=>item(t,'a')).join(''):`<p class="muted">${tx('Nothing new right now. More technology arrives as the years pass.')}</p>`}</section>
+   <section class="card"><h3>${tx('Coming soon')}</h3>${soon.map(t=>item(t,'s')).join('')||`<p class="muted">${tx('You have seen every technology.')}</p>`}${done.length?`<h3 style="margin-top:10px">${tx('Researched ({n})',{n:done.length})}</h3><div class="chips">${done.map(t=>`<span class="tag good">${tx(t.n)}</span>`).join('')}</div>`:''}</section>
   </div>`;
 }
 function raceIdx(c,race){const st=carStats(c);let h=st.handling;if(race.awd&&c.dt==='awd')h+=.15;return .45*(10/st.t)+.35*(st.top/200)+.2*h}
 function expIdx(y){const k=clamp((y-1970)/55,0,1);const t=13-6.5*k,top=150+100*k;return .45*(10/t)+.35*(top/200)+.14}
 function viewRace(){
   const y=yearF(),inf=I();
-  return `<div class="sect-h"><div><small>Win prize money, reputation and fans</small><h2>Racing</h2></div></div>
+  return `<div class="sect-h"><div><small>${tx('Win prize money, reputation and fans')}</small><h2>${tx('Racing')}</h2></div></div>
   <div class="grid">${RACES.map(r=>{const lock=y<r.y,cd=S.races[r.id]&&S.races[r.id]>S.day;
-    return `<section class="card"><div class="spread"><h3>${r.n}</h3>${lock?`<span class="tag">From ${r.y}</span>`:cd?`<span class="tag">Next ${dateStr(S.races[r.id])}</span>`:'<span class="tag good">Open</span>'}</div><p class="muted" style="margin:0">${r.d}</p>
-    <div class="dl"><div><small>Entry fee</small><b>${fm(r.fee*inf)}</b></div><div><small>Winner gets</small><b>${fm(r.prize*inf)}</b></div><div><small>Field pace</small><b>${(expIdx(y)*r.tier*100).toFixed(0)}</b></div></div>
-    ${S.cars.length&&!lock?`<div class="field"><label class="lbl" for="rc-${r.id}">Your entry</label><select id="rc-${r.id}">${S.cars.map(c=>`<option value="${c.id}">${esc(fullName(c))} · pace ${(raceIdx(c,r)*100).toFixed(0)}</option>`).join('')}</select></div>
-    <button class="btn primary" data-a="race:${r.id}" ${cd||S.money<r.fee*inf?'disabled':''}>Enter race</button>`:''}</section>`}).join('')}</div>`;
+    return `<section class="card"><div class="spread"><h3>${tx(r.n)}</h3>${lock?`<span class="tag">${tx('From {y}',{y:r.y})}</span>`:cd?`<span class="tag">${tx('Next {d}',{d:dateStr(S.races[r.id])})}</span>`:`<span class="tag good">${tx('Open')}</span>`}</div><p class="muted" style="margin:0">${tx(r.d)}</p>
+    <div class="dl"><div><small>${tx('Entry fee')}</small><b>${fm(r.fee*inf)}</b></div><div><small>${tx('Winner gets')}</small><b>${fm(r.prize*inf)}</b></div><div><small>${tx('Field pace')}</small><b>${(expIdx(y)*r.tier*100).toFixed(0)}</b></div></div>
+    ${S.cars.length&&!lock?`<div class="field"><label class="lbl" for="rc-${r.id}">${tx('Your entry')}</label><select id="rc-${r.id}">${S.cars.map(c=>`<option value="${c.id}">${esc(fullName(c))} · ${tx('pace')} ${(raceIdx(c,r)*100).toFixed(0)}</option>`).join('')}</select></div>
+    <button class="btn primary" data-a="race:${r.id}" ${cd||S.money<r.fee*inf?'disabled':''}>${tx('Enter race')}</button>`:''}</section>`}).join('')}</div>`;
 }
 
 /* ============ DESIGNERS ============ */
-function chipRow(key,opts,cur,kind,disabled){return `<div class="chips">${Object.entries(opts).map(([k,o])=>{const lock=!has(o.t);return `<button class="chip" data-a="${kind}:${key}:${k}" aria-pressed="${cur===k}" ${lock||disabled?'disabled':''}>${o.n}${lock&&techYear(o.t)?` <span class="lk">${techYear(o.t)}</span>`:''}</button>`}).join('')}</div>`}
+function chipRow(key,opts,cur,kind,disabled){return `<div class="chips">${Object.entries(opts).map(([k,o])=>{const lock=!has(o.t);return `<button class="chip" data-a="${kind}:${key}:${k}" aria-pressed="${cur===k}" ${lock||disabled?'disabled':''}>${tx(o.n)}${lock&&techYear(o.t)?` <span class="lk">${techYear(o.t)}</span>`:''}</button>`}).join('')}</div>`}
 function fixEngineDraft(){
   const L=LAYOUTS[draft.layout];if(L.ev)return;
   if(L.rot&&draft.fuel==='diesel')draft.fuel='petrol';
@@ -953,7 +1232,7 @@ function fixEngineDraft(){
   const cap=turboCap();draft.turbos=Math.min(draft.turbos,cap.n);draft.boost=clamp(draft.boost,.2,Math.max(.2,cap.b));
 }
 function openEngine(){
-  draft={name:'Engine '+(S.engines.length+1),layout:'i4',bore:82,stroke:80,valve:has('dohc')?'dohc':has('sohc')?'sohc':'ohv',fuel:'petrol',inj:'carb',turbos:0,boost:.6,sc:'none',mat:has('alu')?'alu':'iron',evHp:200,wo:null};
+  draft={name:tx('Engine {n}',{n:S.engines.length+1}),layout:'i4',bore:82,stroke:80,valve:has('dohc')?'dohc':has('sohc')?'sohc':'ohv',fuel:'petrol',inj:'carb',turbos:0,boost:.6,sc:'none',mat:has('alu')?'alu':'iron',evHp:200,wo:null};
   fixEngineDraft();sheet='engine';renderSheet();
 }
 const engDraftStats=()=>engStats({...draft,year:Math.floor(yearF())});
@@ -961,43 +1240,44 @@ const engDev=s=>(40e3+s.cost*15)*I()*costMul();
 function engStatsHTML(){
   const s=engDraftStats(),inf=I();
   return `${engineDiagram(draft)}
-  <div class="dl"><div><small>Power</small><b>${fn(s.hp)} hp</b></div><div><small>Torque</small><b>${fn(s.tq)} Nm</b></div><div><small>${s.ev?'Type':'Displacement'}</small><b>${s.ev?'Electric':s.L.toFixed(2)+' L'}</b></div><div><small>Redline</small><b>${fn(s.rpm)} rpm</b></div><div><small>Weight</small><b>${s.w} kg</b></div><div><small>Unit cost</small><b>${fm(s.cost*inf*unitMul())}</b></div></div>
-  <div class="stat"><span>Reliability</span>${meter(s.rel)}<span>${s.rel}</span></div>
-  ${s.ev?'':`<div class="stat"><span>hp per litre</span>${meter(s.hp/s.L/2)}<span>${Math.round(s.hp/s.L)}</span></div>`}
-  ${s.rel<40?'<span class="tag bad">Very fragile: expect recalls and race retirements</span>':''}
-  <small>Development cost ${fm(engDev(s))}</small>`;
+  <div class="dl"><div><small>${tx('Power')}</small><b>${tx('{v} hp',{v:fn(s.hp)})}</b></div><div><small>${tx('Torque')}</small><b>${tx('{v} Nm',{v:fn(s.tq)})}</b></div><div><small>${s.ev?tx('Type'):tx('Displacement')}</small><b>${s.ev?tx('Electric'):dec(s.L,2)+' '+tx('L')}</b></div><div><small>${tx('Redline')}</small><b>${tx('{v} rpm',{v:fn(s.rpm)})}</b></div><div><small>${tx('Weight')}</small><b>${tx('{v} kg',{v:s.w})}</b></div><div><small>${tx('Unit cost')}</small><b>${fm(s.cost*inf*unitMul())}</b></div></div>
+  <div class="stat"><span>${tx('Reliability')}</span>${meter(s.rel)}<span>${s.rel}</span></div>
+  ${s.ev?'':`<div class="stat"><span>${tx('hp per litre')}</span>${meter(s.hp/s.L/2)}<span>${Math.round(s.hp/s.L)}</span></div>`}
+  ${s.rel<40?`<span class="tag bad">${tx('Very fragile: expect recalls and race retirements')}</span>`:''}
+  <small>${tx('Development cost {v}',{v:fm(engDev(s))})}</small>`;
 }
 function sheetEngine(){
-  const L=LAYOUTS[draft.layout],cap=turboCap(),s=engDraftStats();
+  const L=LAYOUTS[draft.layout],cap=turboCap(),s=engDraftStats(),mm=tx('mm');
   const fuels=Object.fromEntries(Object.entries(FUELS).map(([k,f])=>[k,L.rot&&k==='diesel'?{...f,t:'__never'}:f]));
   const injs=Object.fromEntries(Object.entries(INJ).filter(([k,j])=>j.f.includes(draft.fuel)));
-  return `<div class="sheet-in"><div class="sect-h"><div><small>Engine bay · ${curYear()} technology</small><h2>Design engine</h2></div><button class="btn ghost" data-a="closeSheet">Cancel</button></div>
+  return `<div class="sheet-in"><div class="sect-h"><div><small>${tx('Engine bay · {y} technology',{y:curYear()})}</small><h2>${tx('Design engine')}</h2></div><button class="btn ghost" data-a="closeSheet">${tx('Cancel')}</button></div>
   <div class="split"><div class="sect">
-   <div class="field"><label class="lbl" for="ename">Name</label><input type="text" id="ename" data-i="dname" value="${esc(draft.name)}" maxlength="28"></div>
-   <div class="field"><span class="lbl">Layout</span>${chipRow('layout',LAYOUTS,draft.layout,'eo')}</div>
-   ${L.ev?`<div class="field"><div class="spread"><label class="lbl" for="evhp">Motor power</label><b id="evv">${draft.evHp} hp</b></div><input type="range" id="evhp" data-i="evHp" min="80" max="1500" step="10" value="${draft.evHp}"></div>`:`
-   <div class="field"><span class="lbl">Fuel</span>${chipRow('fuel',fuels,draft.fuel,'eo')}</div>
-   <div class="field"><span class="lbl">Fuel system</span>${chipRow('inj',injs,draft.inj,'eo')}</div>
-   ${L.rot?'':`<div class="field"><div class="spread"><label class="lbl" for="bore">Bore</label><b id="borev">${draft.bore} mm</b></div><input type="range" id="bore" data-i="bore" min="60" max="${draft.fuel==='diesel'?140:110}" value="${draft.bore}"></div>
-   <div class="field"><div class="spread"><label class="lbl" for="stroke">Stroke</label><b id="strokev">${draft.stroke} mm</b></div><input type="range" id="stroke" data-i="stroke" min="55" max="${draft.fuel==='diesel'?160:110}" value="${draft.stroke}"></div>
-   <small>Bore wider than stroke revs higher for more power. A long stroke gives more torque.</small>
-   <div class="field"><span class="lbl">Valvetrain</span>${chipRow('valve',VALVES,draft.valve,'eo')}</div>`}
-   <div class="field"><div class="spread"><label class="lbl" for="turbos">Turbochargers</label><b id="turbosv">${draft.turbos||'None'}</b></div>
-     ${cap.n?`<input type="range" id="turbos" data-i="turbos" min="0" max="${cap.n}" step="1" value="${draft.turbos}">`:`<small class="muted">Research Turbocharger (${techYear('turbo')}) to fit turbos.</small>`}</div>
-   ${cap.n?`<div class="field"><div class="spread"><label class="lbl" for="boost">Boost per turbo</label><b id="boostv">${draft.turbos?draft.boost.toFixed(1)+' bar':'no turbos'}</b></div><input type="range" id="boost" data-i="boost" min="0.2" max="${cap.b}" step="0.1" value="${draft.boost}"><small class="muted">Your tech allows up to ${cap.n} turbo${cap.n>1?'s':''} at ${cap.b} bar${cap.n<10?'. More research raises this to 10 turbos at 10 bar':''}.</small></div>`:''}
-   <div class="field"><span class="lbl">Supercharger</span>${chipRow('sc',SCS,draft.sc,'eo')}</div>
-   <div class="field"><span class="lbl">Block material</span>${chipRow('mat',EMATS,draft.mat,'eo')}</div>`}
-   <div class="field"><label class="lbl" for="ewo">Weight override (kg)</label><input type="number" id="ewo" data-i="ewo" min="20" step="1" placeholder="Calculated: ${s.wAuto} kg" value="${draft.wo||''}"><small class="muted">Leave blank to use the calculated weight. Allowed range 50–200% of it.</small></div>
+   <div class="field"><label class="lbl" for="ename">${tx('Name')}</label><input type="text" id="ename" data-i="dname" value="${esc(draft.name)}" maxlength="28"></div>
+   <div class="field"><span class="lbl">${tx('Layout')}</span>${chipRow('layout',LAYOUTS,draft.layout,'eo')}</div>
+   ${L.ev?`<div class="field"><div class="spread"><label class="lbl" for="evhp">${tx('Motor power')}</label><b id="evv">${tx('{v} hp',{v:draft.evHp})}</b></div><input type="range" id="evhp" data-i="evHp" min="80" max="1500" step="10" value="${draft.evHp}"></div>`:`
+   <div class="field"><span class="lbl">${tx('Fuel')}</span>${chipRow('fuel',fuels,draft.fuel,'eo')}</div>
+   <div class="field"><span class="lbl">${tx('Fuel system')}</span>${chipRow('inj',injs,draft.inj,'eo')}</div>
+   ${L.rot?'':`<div class="field"><div class="spread"><label class="lbl" for="bore">${tx('Bore')}</label><b id="borev">${draft.bore} ${mm}</b></div><input type="range" id="bore" data-i="bore" min="60" max="${draft.fuel==='diesel'?140:110}" value="${draft.bore}"></div>
+   <div class="field"><div class="spread"><label class="lbl" for="stroke">${tx('Stroke')}</label><b id="strokev">${draft.stroke} ${mm}</b></div><input type="range" id="stroke" data-i="stroke" min="55" max="${draft.fuel==='diesel'?160:110}" value="${draft.stroke}"></div>
+   <small>${tx('Bore wider than stroke revs higher for more power. A long stroke gives more torque.')}</small>
+   <div class="field"><span class="lbl">${tx('Valvetrain')}</span>${chipRow('valve',VALVES,draft.valve,'eo')}</div>`}
+   <div class="field"><div class="spread"><label class="lbl" for="turbos">${tx('Turbochargers')}</label><b id="turbosv">${draft.turbos||tx('None')}</b></div>
+     ${cap.n?`<input type="range" id="turbos" data-i="turbos" min="0" max="${cap.n}" step="1" value="${draft.turbos}">`:`<small class="muted">${tx('Research Turbocharger ({y}) to fit turbos.',{y:techYear('turbo')})}</small>`}</div>
+   ${cap.n?`<div class="field"><div class="spread"><label class="lbl" for="boost">${tx('Boost per turbo')}</label><b id="boostv">${draft.turbos?dec(draft.boost,1)+' bar':tx('no turbos')}</b></div><input type="range" id="boost" data-i="boost" min="0.2" max="${cap.b}" step="0.1" value="${draft.boost}"><small class="muted">${tx('Your tech allows up to {n} turbo(s) at {b} bar.',{n:cap.n,b:dec(cap.b,1)})}${cap.n<10?' '+tx('More research raises this to 10 turbos at 10 bar.'):''}</small></div>`:''}
+   <div class="field"><span class="lbl">${tx('Supercharger')}</span>${chipRow('sc',SCS,draft.sc,'eo')}</div>
+   <div class="field"><span class="lbl">${tx('Block material')}</span>${chipRow('mat',EMATS,draft.mat,'eo')}</div>`}
+   <div class="field"><label class="lbl" for="ewo">${tx('Weight override (kg)')}</label><input type="number" id="ewo" data-i="ewo" min="20" step="1" placeholder="${tx('Calculated: {v} kg',{v:s.wAuto})}" value="${draft.wo||''}"><small class="muted">${tx('Leave blank to use the calculated weight. Allowed range 50–200% of it.')}</small></div>
   </div><div class="card sticky" id="estats">${engStatsHTML()}</div></div></div>
-  <div class="sheet-foot"><span class="muted">Cash <b data-b="money"></b></span><button class="btn primary" data-a="buildEngine">Build engine</button></div>`;
+  <div class="sheet-foot"><span class="muted">${tx('Cash')} <b data-b="money"></b></span><button class="btn primary" data-a="buildEngine">${tx('Build engine')}</button></div>`;
 }
-function suggestTrim(eid,dt){const e=engById(eid),s=engStats(e);if(s.ev)return 'e'+Math.round(s.hp/10)*10;return s.L.toFixed(1)+(e.fuel==='diesel'?'d':e.fuel==='lpg'?' LPG':'i')+(e.turbos?'T':'')+(dt==='awd'?' AWD':'')}
+function suggestTrim(eid,dt){const e=engById(eid),s=engStats(e);if(s.ev)return 'e'+Math.round(s.hp/10)*10;return s.L.toFixed(1)+(e.fuel==='diesel'?'d':e.fuel==='lpg'?' LPG':'i')+(e.turbos?'T':'')+(dt==='awd'?' 4x4':'')}
+const BIRDS={en:['Falcon','Merlin','Swift','Harrier','Osprey','Kite','Avocet','Plover','Condor','Tern','Lark','Shrike','Kestrel','Heron'],bg:['Сокол','Ястреб','Бързолет','Орел','Чайка','Щъркел','Чучулига','Кос','Ветрушка','Чапла','Кондор','Албатрос','Сврака','Лястовица']};
 function openCar(model){
   const e=S.engines[S.engines.length-1];
   if(model){const b=S.cars.find(c=>c.model===model);
     draft={mode:'trim',model,mname:b.mname,body:b.body,mat:b.mat,eng:b.eng,gb:b.gb,dt:b.dt,lsd:b.lsd,susp:b.susp,int:b.int,hl:b.hl,equip:b.equip.slice(),color:b.color,price:null,cw:null,trim:''};
   }else{
-    draft={mode:'new',mname:pick(['Falcon','Merlin','Swift','Harrier','Osprey','Kite','Avocet','Plover','Condor','Tern','Lark','Shrike','Kestrel','Heron']),body:'sedan',eng:e.id,gb:LAYOUTS[e.layout].ev?'ev1':has('m5')?'m5':'m4',dt:'fwd',lsd:false,susp:'std',int:'standard',mat:'steel',hl:'halogen',
+    draft={mode:'new',mname:pick(BIRDS[LANG]),body:'sedan',eng:e.id,gb:LAYOUTS[e.layout].ev?'ev1':has('m5')?'m5':'m4',dt:'fwd',lsd:false,susp:'std',int:'standard',mat:'steel',hl:'halogen',
       equip:Object.keys(EQUIP).filter(k=>has(EQUIP[k].t)&&!['adas','selfdrive','sunroof'].includes(k)&&EQUIP[k].cost<300),color:pick(PAINTS)[1],price:null,cw:null,trim:''};
   }
   draft.trim=draft.autoTrim=suggestTrim(draft.eng,draft.dt);
@@ -1009,37 +1289,37 @@ function carStatsHTML(){
   const c=draftCar(),st=carStats(c),inf=I(),sp=suggestPrice(st,c.body),price=draft.price?draft.price/inf:sp,bs=bestSeg(st,c.body),lim=emisLimit(yearF());
   const est=SEGK.map(s=>{const sz=segSize(s,yearF());if(!sz)return 0;const ap=playerAppeal({...c,price,review:6.5},st,s,yearF())*mktBoost()*S.aware*repF()*demandMul();const ca=S.comp.reduce((a,cp)=>a+(yearF()>=cp.from?cp.q[s]*cp.q[s]:0),0);return sz*ap/(ap+ca)}).reduce((a,b)=>a+b,0);
   return `<div class="pic" style="background:linear-gradient(to bottom,transparent 72%,var(--sunk) 72%);border-radius:8px">${carSVG(c.body,c.color,draft.mname)}</div>
-  <div class="dl"><div><small>0–100 km/h</small><b>${st.t.toFixed(1)} s</b></div><div><small>Top speed</small><b>${st.top} km/h</b></div><div><small>${st.ev?'Energy use':'Fuel use'}</small><b>${st.ev?st.kwh.toFixed(1)+' kWh/100':st.l100.toFixed(1)+' L/100'}</b></div><div><small>Weight</small><b>${fn(st.w)} kg</b></div><div><small>Power</small><b>${fn(st.hp)} hp</b></div><div><small>CO₂</small><b class="${lim&&st.emis>lim?'neg':''}">${st.emis} g/km</b></div></div>
+  <div class="dl"><div><small>${tx('0–100 km/h')}</small><b>${tx('{v} s',{v:dec(st.t,1)})}</b></div><div><small>${tx('Top speed')}</small><b>${tx('{v} km/h',{v:st.top})}</b></div><div><small>${st.ev?tx('Energy use'):tx('Fuel use')}</small><b>${st.ev?tx('{v} kWh/100 km',{v:dec(st.kwh,1)}):tx('{v} L/100 km',{v:dec(st.l100,1)})}</b></div><div><small>${tx('Weight')}</small><b>${tx('{v} kg',{v:fn(st.w)})}</b></div><div><small>${tx('Power')}</small><b>${tx('{v} hp',{v:fn(st.hp)})}</b></div><div><small>CO₂</small><b class="${lim&&st.emis>lim?'neg':''}">${tx('{v} g/km',{v:st.emis})}</b></div></div>
   ${statRows(st.sc)}
-  <div><small>Best fit: ${SEGS[bs].n} buyers</small><div class="chips" style="margin-top:6px">${SEGK.filter(s=>BODIES[c.body].seg[s]>=.3).map(s=>`<span class="tag ${s===bs?'y':''}">${SEGS[s].n} ${Math.round(st.fit[s]*100)}</span>`).join('')}</div></div>
-  <div class="dl"><div><small>Build cost</small><b>${fm(st.cost*inf)}</b></div><div><small>Suggested price</small><b>${fm(Math.round(sp*inf/10)*10)}</b></div><div><small>Est. demand</small><b>${fn(est)}/day</b></div></div>`;
+  <div><small>${tx('Best fit: {seg} buyers',{seg:[SEGS[bs].n]})}</small><div class="chips" style="margin-top:6px">${SEGK.filter(s=>BODIES[c.body].seg[s]>=.3).map(s=>`<span class="tag ${s===bs?'y':''}">${tx(SEGS[s].n)} ${Math.round(st.fit[s]*100)}</span>`).join('')}</div></div>
+  <div class="dl"><div><small>${tx('Build cost')}</small><b>${fm(st.cost*inf)}</b></div><div><small>${tx('Suggested price')}</small><b>${fm(Math.round(sp*inf/10)*10)}</b></div><div><small>${tx('Est. demand')}</small><b>${fn(est)}${tx('/day')}</b></div></div>`;
 }
 function sheetCar(){
   const E=engById(draft.eng),ev=LAYOUTS[E.layout].ev,tr=draft.mode==='trim';
   const gears=Object.fromEntries(Object.entries(GEARS).filter(([k,g])=>ev?g.ev:!g.ev));
-  const eqRow=cat=>`<div class="chips">${Object.entries(EQUIP).filter(([k,o])=>o.cat===cat).map(([k,o])=>{const lock=!has(o.t);return `<button class="chip" data-a="cs:${k}" aria-pressed="${draft.equip.includes(k)}" ${lock?'disabled':''}>${o.n}${lock?` <span class="lk">${techYear(o.t)}</span>`:''}</button>`}).join('')}</div>`;
+  const eqRow=cat=>`<div class="chips">${Object.entries(EQUIP).filter(([k,o])=>o.cat===cat).map(([k,o])=>{const lock=!has(o.t);return `<button class="chip" data-a="cs:${k}" aria-pressed="${draft.equip.includes(k)}" ${lock?'disabled':''}>${tx(o.n)}${lock?` <span class="lk">${techYear(o.t)}</span>`:''}</button>`}).join('')}</div>`;
   const st=carStats(draftCar());
-  return `<div class="sheet-in"><div class="sect-h"><div><small>Design studio · development ${fm(carDev())}</small><h2>${tr?'New version':'Design car'}</h2></div><button class="btn ghost" data-a="closeSheet">Cancel</button></div>
+  return `<div class="sheet-in"><div class="sect-h"><div><small>${tx('Design studio · development {v}',{v:fm(carDev())})}</small><h2>${tr?tx('New version'):tx('Design car')}</h2></div><button class="btn ghost" data-a="closeSheet">${tx('Cancel')}</button></div>
   <div class="split"><div class="sect">
-   ${tr?`<div class="card"><small>Adding a version of</small><h3>${esc(draft.mname)}</h3><small>${BODIES[draft.body].n} · ${MATS[draft.mat].n} body. Body and shell stay the same; everything else can change.</small></div>`:
-   `<div class="field"><label class="lbl" for="cname">Model name</label><input type="text" id="cname" data-i="mname" value="${esc(draft.mname)}" maxlength="24"></div>
-    <div class="field"><span class="lbl">Body</span>${chipRow('body',BODIES,draft.body,'co')}</div>`}
-   <div class="field"><label class="lbl" for="ctrim">Version name</label><input type="text" id="ctrim" data-i="trim" value="${esc(draft.trim)}" maxlength="18" placeholder="e.g. 2.0d AWD"></div>
-   <div class="field"><label class="lbl" for="ceng">Engine</label><select id="ceng" data-i="ceng">${S.engines.map(e=>`<option value="${e.id}" ${e.id===draft.eng?'selected':''}>${esc(e.name)} · ${esc(engDesc(e))}</option>`).join('')}</select></div>
-   <div class="field"><span class="lbl">Gearbox</span>${chipRow('gb',gears,draft.gb,'co')}</div>
-   <div class="field"><span class="lbl">Drive</span>${chipRow('dt',DRIVES,draft.dt,'co')}<div class="chips"><button class="chip" data-a="lsd" aria-pressed="${!!draft.lsd}" ${has('lsd')?'':'disabled'}>Limited-slip diff${has('lsd')?'':` <span class="lk">${techYear('lsd')}</span>`}</button></div></div>
-   <div class="field"><span class="lbl">Suspension</span>${chipRow('susp',SUSP,draft.susp,'co')}</div>
-   <div class="field"><span class="lbl">Interior</span>${chipRow('int',INTS,draft.int,'co')}</div>
-   ${tr?'':`<div class="field"><span class="lbl">Body material</span>${chipRow('mat',MATS,draft.mat,'co')}</div>`}
-   <div class="field"><span class="lbl">Headlights</span>${chipRow('hl',HEADL,draft.hl,'co')}</div>
-   <div class="field"><span class="lbl">Safety</span>${eqRow('s')}</div>
-   <div class="field"><span class="lbl">Comfort & tech</span>${eqRow('c')}</div>
-   <div class="field"><span class="lbl">Paint</span><div class="chips">${PAINTS.map(([n,h])=>`<button class="swatch" style="background:${h}" data-a="paint:${h.slice(1)}" aria-pressed="${draft.color===h}" aria-label="${n}"></button>`).join('')}</div>
-     <div class="row"><input type="color" id="cpick" data-i="color" value="${draft.color}" aria-label="Any colour"><input type="text" id="chex" data-i="hex" value="${draft.color}" maxlength="7" style="max-width:130px" aria-label="Hex colour"><small class="muted">Any RGB colour</small></div></div>
-   <div class="field"><label class="lbl" for="ccw">Curb weight override (kg)</label><input type="number" id="ccw" data-i="cw" min="300" step="1" placeholder="Calculated: ${st.wAuto} kg" value="${draft.cw||''}"><small class="muted">Leave blank to use the calculated weight. Allowed range 50–200% of it.</small></div>
-   <div class="field"><label class="lbl" for="cprice">Price (leave blank for suggested)</label><input type="number" id="cprice" data-i="cprice" min="1" step="10" value="${draft.price||''}" placeholder="Suggested"></div>
+   ${tr?`<div class="card"><small>${tx('Adding a version of')}</small><h3>${esc(draft.mname)}</h3><small>${tx('{body} · {mat} body. Body and shell stay the same; everything else can change.',{body:[BODIES[draft.body].n],mat:[MATS[draft.mat].n]})}</small></div>`:
+   `<div class="field"><label class="lbl" for="cname">${tx('Model name')}</label><input type="text" id="cname" data-i="mname" value="${esc(draft.mname)}" maxlength="24"></div>
+    <div class="field"><span class="lbl">${tx('Body')}</span>${chipRow('body',BODIES,draft.body,'co')}</div>`}
+   <div class="field"><label class="lbl" for="ctrim">${tx('Version name')}</label><input type="text" id="ctrim" data-i="trim" value="${esc(draft.trim)}" maxlength="18" placeholder="${tx('e.g. 2.0d 4x4')}"></div>
+   <div class="field"><label class="lbl" for="ceng">${tx('Engine')}</label><select id="ceng" data-i="ceng">${S.engines.map(e=>`<option value="${e.id}" ${e.id===draft.eng?'selected':''}>${esc(e.name)} · ${esc(engDesc(e))}</option>`).join('')}</select></div>
+   <div class="field"><span class="lbl">${tx('Gearbox')}</span>${chipRow('gb',gears,draft.gb,'co')}</div>
+   <div class="field"><span class="lbl">${tx('Drive')}</span>${chipRow('dt',DRIVES,draft.dt,'co')}<div class="chips"><button class="chip" data-a="lsd" aria-pressed="${!!draft.lsd}" ${has('lsd')?'':'disabled'}>${tx('Limited-slip diff')}${has('lsd')?'':` <span class="lk">${techYear('lsd')}</span>`}</button></div></div>
+   <div class="field"><span class="lbl">${tx('Suspension')}</span>${chipRow('susp',SUSP,draft.susp,'co')}</div>
+   <div class="field"><span class="lbl">${tx('Interior')}</span>${chipRow('int',INTS,draft.int,'co')}</div>
+   ${tr?'':`<div class="field"><span class="lbl">${tx('Body material')}</span>${chipRow('mat',MATS,draft.mat,'co')}</div>`}
+   <div class="field"><span class="lbl">${tx('Headlights')}</span>${chipRow('hl',HEADL,draft.hl,'co')}</div>
+   <div class="field"><span class="lbl">${tx('Safety')}</span>${eqRow('s')}</div>
+   <div class="field"><span class="lbl">${tx('Comfort & tech')}</span>${eqRow('c')}</div>
+   <div class="field"><span class="lbl">${tx('Paint')}</span><div class="chips">${PAINTS.map(([n,h])=>`<button class="swatch" style="background:${h}" data-a="paint:${h.slice(1)}" aria-pressed="${draft.color===h}" aria-label="${tx(n)}"></button>`).join('')}</div>
+     <div class="row"><input type="color" id="cpick" data-i="color" value="${draft.color}" aria-label="${tx('Any colour')}"><input type="text" id="chex" data-i="hex" value="${draft.color}" maxlength="7" style="max-width:130px" aria-label="${tx('Hex colour')}"><small class="muted">${tx('Any RGB colour')}</small></div></div>
+   <div class="field"><label class="lbl" for="ccw">${tx('Curb weight override (kg)')}</label><input type="number" id="ccw" data-i="cw" min="300" step="1" placeholder="${tx('Calculated: {v} kg',{v:st.wAuto})}" value="${draft.cw||''}"><small class="muted">${tx('Leave blank to use the calculated weight. Allowed range 50–200% of it.')}</small></div>
+   <div class="field"><label class="lbl" for="cprice">${tx('Price (leave blank for suggested)')}</label><input type="number" id="cprice" data-i="cprice" min="1" step="10" value="${draft.price||''}" placeholder="${tx('Suggested')}"></div>
   </div><div class="card sticky" id="cstats">${carStatsHTML()}</div></div></div>
-  <div class="sheet-foot"><span class="muted">Cash <b data-b="money"></b></span><button class="btn primary" data-a="launchCar">${tr?'Launch version':'Launch model'}</button></div>`;
+  <div class="sheet-foot"><span class="muted">${tx('Cash')} <b data-b="money"></b></span><button class="btn primary" data-a="launchCar">${tr?tx('Launch version'):tx('Launch model')}</button></div>`;
 }
 function renderSheet(keep){
   let el=$('#sheet');const top=el?el.scrollTop:0;
@@ -1053,67 +1333,77 @@ function updateSheetStats(){if(sheet==='engine')$('#estats').innerHTML=engStatsH
 
 /* ============ SETUP ============ */
 const ERAS=[[1970,'Carburettors and pushrods. A wide-open market.'],[1975,'Oil-crisis years. Small, thrifty cars rule.'],[1980,'Fuel injection and turbos arrive.'],[1985,'Robots, ABS and the first supercars.'],[1990,'Emission limits begin. The SUV boom is coming.'],[1995,'Airbags and twin-turbos are standard kit.'],[2000,'Diesel boom and green buyers. Rivals are strong.'],[2005,'Carbon fibre and dual-clutch gearboxes.'],[2010,'Electric cars become possible. A mature, tough market.'],[2015,'Clean cars surge after the emissions scandal.'],[2020,'Pandemic, chip shortage and the EV race.'],[2025,'Established rivals everywhere.']];
-const eraText=y=>{let t=ERAS[0][1];for(const[a,b]of ERAS)if(y>=a)t=b;return t};
+const eraText=y=>{let t=ERAS[0][1];for(const[a,b]of ERAS)if(y>=a)t=b;return tx(t)};
 function setupNote(){const inf=infl(setupYear),pre=TECH.filter(t=>t.y<=setupYear-3).length;
-  return `<b>${eraText(setupYear)}</b> <span class="muted">You start with ${fm(DIFF[setupDiff].cash*inf)}, a rented garage and three staff. ${pre?pre+' older technologies come already researched.':'Nothing is researched yet.'} No engines or cars: you design everything.</span>`}
+  return `<b>${eraText(setupYear)}</b> <span class="muted">${tx('You start with {cash}, a rented garage and three staff.',{cash:fm(DIFF[setupDiff].cash*inf)})} ${pre?tx('{n} older technologies come already researched.',{n:pre}):tx('Nothing is researched yet.')} ${tx('No engines or cars: you design everything.')}</span>`}
 function showSetup(cancel){
   if(S)setSpeed(0);closeModal();
-  let el=$('#setup');if(!el){el=document.createElement('div');el.className='sheet';el.id='setup';document.body.append(el)}
+  let el=$('#setup');const keepName=el&&$('#setupName')?$('#setupName').value:'';const keepCode=el&&$('#importCode')?$('#importCode').value:'';
+  if(!el){el=document.createElement('div');el.className='sheet';el.id='setup';document.body.append(el)}
+  el.dataset.cancel=cancel?'1':'';
+  document.documentElement.lang=LANG;
   const yrs=[];for(let y=1970;y<=2025;y++)yrs.push(y);
   el.innerHTML=`<div class="sheet-in" style="max-width:560px">
-   <div class="sect-h"><div><small>Motorworks Tycoon</small><h2>Found your company</h2></div>${cancel?'<button class="btn ghost" data-a="cancelSetup">Cancel</button>':''}</div>
+   <div class="sect-h"><div><small>Motorworks Tycoon</small><h2>${tx('Found your company')}</h2></div><div class="row" style="gap:8px">${langSwitch()}${cancel?`<button class="btn ghost" data-a="cancelSetup">${tx('Cancel')}</button>`:''}</div></div>
    <div class="card">
-    <div class="field"><label class="lbl" for="setupName">Company name</label><input type="text" id="setupName" maxlength="24" placeholder="Kestrel Motors" autocomplete="off"></div>
-    <div class="field"><label class="lbl" for="setupYear">Start year</label><select id="setupYear" data-i="setupYear">${yrs.map(y=>`<option ${y===setupYear?'selected':''}>${y}</option>`).join('')}</select></div>
-    <div class="chips">${[1970,1980,1990,2000,2010,2020].map(y=>`<button class="chip" data-a="sy:${y}" aria-pressed="${Math.floor(setupYear/10)*10===y}">${y}s</button>`).join('')}</div>
+    <div class="field"><label class="lbl" for="setupName">${tx('Company name')}</label><input type="text" id="setupName" maxlength="24" placeholder="Kestrel Motors" autocomplete="off" value="${esc(keepName)}"></div>
+    <div class="field"><label class="lbl" for="setupYear">${tx('Start year')}</label><select id="setupYear" data-i="setupYear">${yrs.map(y=>`<option ${y===setupYear?'selected':''}>${y}</option>`).join('')}</select></div>
+    <div class="chips">${[1970,1980,1990,2000,2010,2020].map(y=>`<button class="chip" data-a="sy:${y}" aria-pressed="${Math.floor(setupYear/10)*10===y}">${tx('{y}s',{y})}</button>`).join('')}</div>
     <p id="eraNote" style="margin:0">${setupNote()}</p>
-    <div class="field"><span class="lbl">Difficulty</span><div class="chips">${Object.entries(DIFF).map(([k,d])=>`<button class="chip" data-a="sd:${k}" aria-pressed="${setupDiff===k}">${d.n}</button>`).join('')}</div><small id="diffNote" class="muted">${DIFF[setupDiff].d}</small></div>
-    <button class="btn primary" data-a="startGame">Open the garage</button>
+    <div class="field"><span class="lbl">${tx('Difficulty')}</span><div class="chips">${Object.entries(DIFF).map(([k,d])=>`<button class="chip" data-a="sd:${k}" aria-pressed="${setupDiff===k}">${tx(d.n)}</button>`).join('')}</div><small id="diffNote" class="muted">${tx(DIFF[setupDiff].d)}</small></div>
+    <button class="btn primary" data-a="startGame">${tx('Open the garage')}</button>
    </div>
-   <div class="card"><h3>Continue from another device</h3><p class="muted" style="margin:0">On your other device, open the menu and tap Copy save code. Paste it here.</p>
-    <textarea id="importCode" rows="3" class="code" placeholder="Paste save code"></textarea>
-    <button class="btn" data-a="importSave">Load save</button><span id="importMsg" class="neg"></span></div>
+   <div class="card"><h3>${tx('Continue from another device')}</h3><p class="muted" style="margin:0">${tx('On your other device, open the menu and tap Copy save code. Paste it here.')}</p>
+    <textarea id="importCode" rows="3" class="code" placeholder="${tx('Paste save code')}">${esc(keepCode)}</textarea>
+    <button class="btn" data-a="importSave">${tx('Load save')}</button><span id="importMsg" class="neg"></span></div>
   </div>`;
 }
 function beginGame(st){S=st;const el=$('#setup');if(el)el.remove();tab='hq';save();lastSave=S.day;renderTop();renderNav();renderView();setSpeed(1)}
 function exportCode(){return btoa(unescape(encodeURIComponent(JSON.stringify(S))))}
 function importCode(code){try{const st=JSON.parse(decodeURIComponent(escape(atob(code.trim().replace(/\s+/g,'')))));return st&&Array.isArray(st.cars)?migrate(st):null}catch(e){return null}}
+function switchLang(){
+  LANG=LANG==='en'?'bg':'en';try{localStorage.setItem(LANGKEY,LANG)}catch(e){}
+  document.documentElement.lang=LANG;
+  const su=$('#setup');if(su)showSetup(su.dataset.cancel==='1');
+  if(S){renderTop();renderNav();renderView();if(sheet)renderSheet(true)}
+}
 
 /* ============ ACTIONS ============ */
 function reviewCar(c,st){
   const bs=bestSeg(st,c.body),fr=st.fit[bs],V=segValue(bs,fr,c.body),val=V/c.price;
   let score=clamp(fr*9.5+(val-1)*3+1.2,1,10);score=Math.round(score*2)/2;
   const ranked=Object.entries(st.sc).sort((a,b)=>b[1]-a[1]);
-  const good=ranked.slice(0,2).map(([k])=>SCORE_N[k].toLowerCase()),bad=ranked.slice(-2).map(([k])=>SCORE_N[k].toLowerCase());
-  const pub=pick(['Autocar Weekly','Road & Wheel','Gearbox Gazette','The Driving Post','Fleet & Freight']);
-  const verdict=score>=8.5?'A new benchmark. Buy one.':score>=7?'A strong contender in its class.':score>=5.5?'Competent, but rivals do it better.':'Hard to recommend at this price.';
-  const priceLine=val>1.15?'and it is a bargain for the money':val<.85?'though the price is hard to justify':'and it is fairly priced';
-  return {score,html:`<span class="tag">${pub} · ${SEGS[bs].n} class</span><div class="spread"><h2>${esc(fullName(c))}</h2><span class="bigscore">${score.toFixed(1)}</span></div>${carSVG(c.body,c.color,c.mname)}<p style="margin:0"><b>${verdict}</b> Testers praised its ${good.join(' and ')}, ${priceLine}. Weak points: ${bad.join(' and ')}.</p><p class="muted" style="margin:0">Set its production on the Cars tab to put it on sale.</p>`};
+  const good=ranked.slice(0,2).map(([k])=>tx(SCORE_N[k]).toLowerCase()),bad=ranked.slice(-2).map(([k])=>tx(SCORE_N[k]).toLowerCase());
+  const pub=tx(pick(['Autocar Weekly','Road & Wheel','Gearbox Gazette','The Driving Post','Fleet & Freight']));
+  const verdict=tx(score>=8.5?'A new benchmark. Buy one.':score>=7?'A strong contender in its class.':score>=5.5?'Competent, but rivals do it better.':'Hard to recommend at this price.');
+  const priceLine=tx(val>1.15?'and it is a bargain for the money':val<.85?'though the price is hard to justify':'and it is fairly priced');
+  return {score,html:`<span class="tag">${pub} · ${tx('{seg} class',{seg:[SEGS[bs].n]})}</span><div class="spread"><h2>${esc(fullName(c))}</h2><span class="bigscore">${dec(score,1)}</span></div>${carSVG(c.body,c.color,c.mname)}<p style="margin:0"><b>${verdict}</b> ${tx('Testers praised its {good}, {price}. Weak points: {bad}.',{good:good.join(tx(' and ')),price:priceLine,bad:bad.join(tx(' and '))})}</p><p class="muted" style="margin:0">${tx('Set its production on the Cars tab to put it on sale.')}</p>`};
 }
 function act(a){
   const [k,x,y]=a.split(':');const inf=S?I():1;
   switch(k){
+  case 'lang':switchLang();break;
   case 'tab':tab=x;renderNav();renderView();window.scrollTo(0,0);break;
   case 'speed':setSpeed(+x);break;
-  case 'menu':modal(`<h2>${esc(S.name)}</h2><p class="muted" style="margin:0">${DIFF[S.diff||'easy'].n} difficulty · founded ${S.startY||1970} · now ${dateStr(S.day)}. The game saves on this device automatically.</p>
-    <div class="field"><span class="lbl">Move to another device</span><p class="muted" style="margin:0">Copy this code, send it to yourself, then paste it on the other device's start screen.</p><textarea id="saveCode" rows="3" readonly class="code">${exportCode()}</textarea><button class="btn" data-a="copyCode">Copy save code</button></div>`,[['Close','close'],['Save now','saveNow'],['New company','newGame',1]]);break;
-  case 'copyCode':{const ta=$('#saveCode');try{navigator.clipboard.writeText(ta.value).then(()=>notify('Save code copied.'),()=>{ta.select();notify('Code selected. Copy it with your keyboard or long-press.')})}catch(e){ta.select()}break}
+  case 'menu':modal(`<h2>${esc(S.name)}</h2><p class="muted" style="margin:0">${tx('{diff} difficulty · founded {y} · now {d}. The game saves on this device automatically.',{diff:[DIFF[S.diff||'easy'].n],y:S.startY||1970,d:dateStr(S.day)})}</p>
+    <div class="field"><span class="lbl">${tx('Move to another device')}</span><p class="muted" style="margin:0">${tx('Copy this code, send it to yourself, then paste it on the other device’s start screen.')}</p><textarea id="saveCode" rows="3" readonly class="code">${exportCode()}</textarea><button class="btn" data-a="copyCode">${tx('Copy save code')}</button></div>`,[[tx('Close'),'close'],[tx('Save now'),'saveNow'],[tx('New company'),'newGame',1]]);break;
+  case 'copyCode':{const ta=$('#saveCode');try{navigator.clipboard.writeText(ta.value).then(()=>notify(tx('Save code copied.')),()=>{ta.select();notify(tx('Code selected. Copy it with your keyboard or long-press.'))})}catch(e){ta.select()}break}
   case 'close':closeModal();break;
-  case 'saveNow':save();closeModal();notify('Game saved.');break;
+  case 'saveNow':save();closeModal();notify(tx('Game saved.'));break;
   case 'newGame':showSetup(true);break;
   case 'restart':S.over=true;save();showSetup(false);break;
   case 'sy':setupYear=+x;$('#setupYear').value=x;$('#eraNote').innerHTML=setupNote();document.querySelectorAll('[data-a^="sy:"]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.a==='sy:'+x));break;
-  case 'sd':setupDiff=x;$('#diffNote').textContent=DIFF[x].d;$('#eraNote').innerHTML=setupNote();document.querySelectorAll('[data-a^="sd:"]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.a==='sd:'+x));break;
+  case 'sd':setupDiff=x;$('#diffNote').textContent=tx(DIFF[x].d);$('#eraNote').innerHTML=setupNote();document.querySelectorAll('[data-a^="sd:"]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.a==='sd:'+x));break;
   case 'startGame':beginGame(newGame(($('#setupName')||{}).value,setupYear,setupDiff));break;
   case 'cancelSetup':{const el=$('#setup');if(el)el.remove();setSpeed(1);break}
-  case 'importSave':{const st=importCode($('#importCode').value);if(!st){$('#importMsg').textContent='That code could not be read. Copy the whole code and try again.';break}beginGame(st);notify('Save loaded: '+st.name+', '+dateStr(st.day)+'.');break}
-  case 'upgrade':{const nx=HQ[S.hq+1],c=nx&&nx.cost*inf*costMul();if(nx&&S.money>=c){S.money-=c;S.hq++;notify(`${S.name} moves into a ${nx.n}.`,true);renderView()}break}
+  case 'importSave':{const st=importCode($('#importCode').value);if(!st){$('#importMsg').textContent=tx('That code could not be read. Copy the whole code and try again.');break}beginGame(st);notify(tx('Save loaded: {name}, {d}.',{name:st.name,d:dateStr(st.day)}));break}
+  case 'upgrade':{const nx=HQ[S.hq+1],c=nx&&nx.cost*inf*costMul();if(nx&&S.money>=c){S.money-=c;S.hq++;news('{name} moves into a {hq}.',{name:S.name,hq:[nx.n]});renderView()}break}
   case 'hire':{const c=hireCost(x);if(staffN()<HQ[S.hq].staff&&S.money>=c){S.money-=c;S.staff[x]++;renderView()}break}
   case 'fire':if(S.staff[x]>0){S.staff[x]--;renderView()}break;
-  case 'mkt':{const c=CAMPAIGNS.find(c=>c.id===x),cost=c.c*inf*costMul();if(S.money>=cost){S.money-=cost;S.aware=clamp(S.aware+c.a,0,1);S.mkt=S.mkt.filter(m=>m.until>S.day);S.mkt.push({id:c.id,b:c.b,until:S.day+c.d});notify(`${c.n} launched.`);renderView()}break}
-  case 'research':{const t=TECH.find(t=>t.id===x),c=t.c*inf*costMul();if(S.rp>=t.rp&&S.money>=c){S.rp-=t.rp;S.money-=c;S.tech.push(t.id);notify(`Research complete: ${t.n}.`,true);renderView()}break}
+  case 'mkt':{const c=CAMPAIGNS.find(c=>c.id===x),cost=c.c*inf*costMul();if(S.money>=cost){S.money-=cost;S.aware=clamp(S.aware+c.a,0,1);S.mkt=S.mkt.filter(m=>m.until>S.day);S.mkt.push({id:c.id,b:c.b,until:S.day+c.d});notify(tx('{name} launched.',{name:[c.n]}));renderView()}break}
+  case 'research':{const t=TECH.find(t=>t.id===x),c=t.c*inf*costMul();if(S.rp>=t.rp&&S.money>=c){S.rp-=t.rp;S.money-=c;S.tech.push(t.id);news('Research complete: {name}.',{name:[t.n]});renderView()}break}
   case 'newEngine':openEngine();break;
-  case 'newCar':if(!S.engines.length){notify('Design an engine first.');tab='eng';renderNav();renderView();break}openCar();break;
+  case 'newCar':if(!S.engines.length){notify(tx('Design an engine first.'));tab='eng';renderNav();renderView();break}openCar();break;
   case 'addTrim':openCar(x);break;
   case 'closeSheet':sheet=null;renderSheet();break;
   case 'eo':{draft[x]=y;if(x==='fuel'&&y==='diesel'){draft.bore=Math.max(draft.bore,80);draft.stroke=Math.max(draft.stroke,86)}fixEngineDraft();renderSheet(true);break}
@@ -1121,21 +1411,21 @@ function act(a){
   case 'cs':draft.equip=draft.equip.includes(x)?draft.equip.filter(s=>s!==x):[...draft.equip,x];renderSheet(true);break;
   case 'lsd':draft.lsd=!draft.lsd;renderSheet(true);break;
   case 'paint':draft.color='#'+x;renderSheet(true);break;
-  case 'buildEngine':{const s=engDraftStats(),dev=engDev(s);if(S.money<dev){notify(`You need ${fm(dev)} to develop this engine.`);break}
-    S.money-=dev;const e={...draft,id:'e'+(S.nid++),year:Math.floor(yearF())};S.engines.push(e);sheet=null;renderSheet();notify(`${e.name} is ready: ${fn(s.hp)} hp.`,true);tab='eng';renderNav();renderView();break}
-  case 'launchCar':{const dev=carDev();if(S.money<dev){notify(`You need ${fm(dev)} to develop this.`);break}
+  case 'buildEngine':{const s=engDraftStats(),dev=engDev(s);if(S.money<dev){notify(tx('You need {v} to develop this engine.',{v:fm(dev)}));break}
+    S.money-=dev;const e={...draft,id:'e'+(S.nid++),year:Math.floor(yearF())};S.engines.push(e);sheet=null;renderSheet();news('{name} is ready: {hp}.',{name:e.name,hp:tx('{v} hp',{v:fn(s.hp)})});tab='eng';renderNav();renderView();break}
+  case 'launchCar':{const dev=carDev();if(S.money<dev){notify(tx('You need {v} to develop this.',{v:fm(dev)}));break}
     const id='c'+(S.nid++);const c={...draftCar(),id,model:draft.mode==='trim'?draft.model:id,prod:0,inv:0,sold:0,rate:0,dem:0,frac:0};delete c.mode;delete c.name;delete c.autoTrim;
     const st=carStats(c);c.price=draft.price?draft.price/inf:suggestPrice(st,c.body);
     const rv=reviewCar(c,st);c.review=rv.score;S.money-=dev;S.cars.push(c);sheet=null;renderSheet();tab='cars';renderNav();renderView();
-    notify(`The ${fullName(c)} launches to a ${rv.score.toFixed(1)}/10 review.`,true);modal(rv.html,[['Go to production','close',1]]);break}
-  case 'retire':{const c=carById(x),st=carStats(c);modal(`<h3>Retire the ${esc(fullName(c))}?</h3><p style="margin:0">Production stops and the ${fn(c.inv)} cars in stock are sold to fleet buyers for ${fm(c.inv*st.cost*inf*.5)}.</p>`,[['Keep it','close'],['Retire version','doRetire:'+x,1]]);break}
+    news('The {name} launches to a {v}/10 review.',{name:fullName(c),v:dec(rv.score,1)});modal(rv.html,[[tx('Go to production'),'close',1]]);break}
+  case 'retire':{const c=carById(x),st=carStats(c);modal(`<h3>${tx('Retire the {name}?',{name:esc(fullName(c))})}</h3><p style="margin:0">${tx('Production stops and the {n} cars in stock are sold to fleet buyers for {v}.',{n:fn(c.inv),v:fm(c.inv*st.cost*inf*.5)})}</p>`,[[tx('Keep it'),'close'],[tx('Retire version'),'doRetire:'+x,1]]);break}
   case 'doRetire':{const c=carById(x),st=carStats(c);S.money+=c.inv*st.cost*inf*.5;S.cars=S.cars.filter(z=>z.id!==x);closeModal();renderView();break}
   case 'detail':{const c=carById(x),st=carStats(c),E=engById(c.eng);
-    const eq=c.equip.map(k=>EQUIP[k]&&EQUIP[k].n).filter(Boolean);
-    modal(`<span class="tag">${BODIES[c.body].n} · ${Math.floor(c.year)}</span><h2>${esc(fullName(c))}</h2>${carSVG(c.body,c.color,c.mname)}
-    <div class="dl"><div><small>Engine</small><b>${esc(E.name)}</b></div><div><small>Power</small><b>${fn(st.hp)} hp</b></div><div><small>0–100</small><b>${st.t.toFixed(1)} s</b></div><div><small>Top speed</small><b>${st.top} km/h</b></div><div><small>${st.ev?'Energy':'Fuel'}</small><b>${st.ev?st.kwh.toFixed(1)+' kWh/100':st.l100.toFixed(1)+' L/100'}</b></div><div><small>Weight</small><b>${fn(st.w)} kg</b></div><div><small>CO₂</small><b>${st.emis} g/km</b></div></div>
-    <small>${esc(engDesc(E))} · ${GEARS[c.gb].n} · ${DRIVES[c.dt].n}${c.lsd?' with LSD':''} · ${SUSP[c.susp].n} suspension · ${INTS[c.int].n} interior · ${HEADL[c.hl].n} lights${eq.length?' · '+eq.join(', '):''}</small>
-    ${statRows(st.sc)}<small>Scores are rated against vehicles of ${curYear()}. Older designs slip as rivals improve.</small>`,[['Close','close',1]]);break}
+    const eq=c.equip.map(k=>EQUIP[k]&&tx(EQUIP[k].n)).filter(Boolean);
+    modal(`<span class="tag">${tx(BODIES[c.body].n)} · ${Math.floor(c.year)}</span><h2>${esc(fullName(c))}</h2>${carSVG(c.body,c.color,c.mname)}
+    <div class="dl"><div><small>${tx('Engine')}</small><b>${esc(E.name)}</b></div><div><small>${tx('Power')}</small><b>${tx('{v} hp',{v:fn(st.hp)})}</b></div><div><small>0–100</small><b>${tx('{v} s',{v:dec(st.t,1)})}</b></div><div><small>${tx('Top speed')}</small><b>${tx('{v} km/h',{v:st.top})}</b></div><div><small>${st.ev?tx('Energy'):tx('Fuel')}</small><b>${st.ev?tx('{v} kWh/100 km',{v:dec(st.kwh,1)}):tx('{v} L/100 km',{v:dec(st.l100,1)})}</b></div><div><small>${tx('Weight')}</small><b>${tx('{v} kg',{v:fn(st.w)})}</b></div><div><small>CO₂</small><b>${tx('{v} g/km',{v:st.emis})}</b></div></div>
+    <small>${esc(engDesc(E))} · ${tx(GEARS[c.gb].n)} · ${tx(DRIVES[c.dt].n)}${c.lsd?' + LSD':''} · ${tx('{v} suspension',{v:[SUSP[c.susp].n]})} · ${tx('{v} interior',{v:[INTS[c.int].n]})} · ${tx('{v} lights',{v:[HEADL[c.hl].n]})}${eq.length?' · '+eq.join(', '):''}</small>
+    ${statRows(st.sc)}<small>${tx('Scores are rated against vehicles of {y}. Older designs slip as rivals improve.',{y:curYear()})}</small>`,[[tx('Close'),'close',1]]);break}
   case 'race':runRace(x);break;
   }
 }
@@ -1152,17 +1442,18 @@ function runRace(id){
   const fin=field.filter(f=>!f.dnf),best=fin.length?Math.max(...fin.map(f=>f.sc)):1;
   const dur=f=>f.dnf?2:2.6*Math.pow(best/f.sc,5);
   const lanes=field.map(f=>`<div class="lane ${f.me?'me':''}"><div class="fin"></div><div class="rc" data-sc="${f.dnf?0:f.sc}" style="transition-duration:${dur(f).toFixed(2)}s"><i style="background:${f.col}"></i>${esc(f.n)}</div></div>`).join('');
-  modal(`<span class="tag">${r.n} · ${dateStr(S.day)}</span><h2>Lights out</h2><div class="track" id="trk">${lanes}</div><div id="rres" class="muted">Racing…</div>`,[]);
+  modal(`<span class="tag">${tx(r.n)} · ${dateStr(S.day)}</span><h2>${tx('Lights out')}</h2><div class="track" id="trk">${lanes}</div><div id="rres" class="muted">${tx('Racing…')}</div>`,[]);
   requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelectorAll('#trk .rc').forEach(el=>{el.style.left=el.dataset.sc==='0'?'38%':'calc(100% - 150px)'})));
   let prize=0,rep=0;
   if(!me.dnf){if(pos===1){prize=r.prize*inf;rep=4}else if(pos===2){prize=r.prize*inf*.45;rep=2}else if(pos===3){prize=r.prize*inf*.2;rep=1}else if(pos>6)rep=-.5}
   S.money+=prize;S.rep=clamp(S.rep+rep*r.tier,0,100);S.aware=clamp(S.aware+(pos<=3?.006*r.tier:.001),0,1);
-  const msg=me.dnf?`The ${fullName(c)} retired with mechanical failure.`:`The ${fullName(c)} finished P${pos} of 8${prize?` and won ${fm(prize)}`:''}.`;
-  setTimeout(()=>{const res=$('#rres');if(!res)return;res.innerHTML=`<h3>${me.dnf?'DNF':'P'+pos}</h3><p style="margin:4px 0 0">${msg}${rep>0?' Reputation up.':''}</p><ol style="margin:8px 0 0;padding-left:20px">${order.map(f=>`<li>${f.me?'<b>':''}${esc(f.n)}${f.me?'</b>':''}${f.dnf?' · DNF':''}</li>`).join('')}</ol>`;
-    $('.modal').insertAdjacentHTML('beforeend','<div class="row" style="justify-content:flex-end"><button class="btn primary" data-a="close">Back to the paddock</button></div>');
-    notify(r.n+': '+msg,true);if(tab==='race')renderView()},Math.min(6000,2700+Math.max(0,...fin.map(f=>dur(f)*1000))));
+  const mk=me.dnf?['The {name} retired with mechanical failure.',{name:fullName(c)}]:prize?['The {name} finished P{pos} of 8 and won {v}.',{name:fullName(c),pos,v:fm(prize)}]:['The {name} finished P{pos} of 8.',{name:fullName(c),pos}];
+  setTimeout(()=>{const res=$('#rres');if(!res)return;res.innerHTML=`<h3>${me.dnf?'DNF':'P'+pos}</h3><p style="margin:4px 0 0">${tx(mk[0],mk[1])}${rep>0?' '+tx('Reputation up.'):''}</p><ol style="margin:8px 0 0;padding-left:20px">${order.map(f=>`<li>${f.me?'<b>':''}${esc(f.n)}${f.me?'</b>':''}${f.dnf?' · DNF':''}</li>`).join('')}</ol>`;
+    $('.modal').insertAdjacentHTML('beforeend',`<div class="row" style="justify-content:flex-end"><button class="btn primary" data-a="close">${tx('Back to the paddock')}</button></div>`);
+    if(S){S.news.unshift({d:S.day,k:'{race}: {msg}',p:{race:[r.n],msg:''}});S.news[0].p.msg=tx(mk[0],mk[1]);S.news[0].k2=mk;}
+    notify(tx(r.n)+': '+tx(mk[0],mk[1]));if(tab==='race')renderView()},Math.min(6000,2700+Math.max(0,...fin.map(f=>dur(f)*1000))));
 }
-function gameOver(){modal(`<span class="tag bad">${dateStr(S.day)}</span><h2>Bankrupt</h2><p>The banks have called in ${esc(S.name)}'s loans. You sold ${fn(S.cars.reduce((a,c)=>a+c.sold,0))} vehicles before the doors closed.</p>`,[['Start a new company','restart',1]])}
+function gameOver(){modal(`<span class="tag bad">${dateStr(S.day)}</span><h2>${tx('Bankrupt')}</h2><p>${tx('The banks have called in {name}’s loans. You sold {n} vehicles before the doors closed.',{name:esc(S.name),n:fn(S.cars.reduce((a,c)=>a+c.sold,0))})}</p>`,[[tx('Start a new company'),'restart',1]])}
 
 /* ============ EVENTS ============ */
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;act(t.dataset.a)});
@@ -1174,9 +1465,9 @@ document.addEventListener('input',e=>{
   else if(a==='dname')draft.name=t.value||'Untitled';
   else if(a==='mname')draft.mname=t.value||'Untitled';
   else if(a==='trim')draft.trim=t.value;
-  else if(a==='bore'||a==='stroke'||a==='evHp'){draft[a]=+t.value;const lab=$(a==='evHp'?'#evv':'#'+a+'v');if(lab)lab.textContent=a==='evHp'?t.value+' hp':t.value+' mm';updateSheetStats()}
-  else if(a==='turbos'){draft.turbos=+t.value;$('#turbosv').textContent=draft.turbos||'None';const bv=$('#boostv');if(bv)bv.textContent=draft.turbos?draft.boost.toFixed(1)+' bar':'no turbos';updateSheetStats()}
-  else if(a==='boost'){draft.boost=+t.value;$('#boostv').textContent=draft.turbos?draft.boost.toFixed(1)+' bar':'no turbos';updateSheetStats()}
+  else if(a==='bore'||a==='stroke'||a==='evHp'){draft[a]=+t.value;const lab=$(a==='evHp'?'#evv':'#'+a+'v');if(lab)lab.textContent=a==='evHp'?tx('{v} hp',{v:t.value}):t.value+' '+tx('mm');updateSheetStats()}
+  else if(a==='turbos'){draft.turbos=+t.value;$('#turbosv').textContent=draft.turbos||tx('None');const bv=$('#boostv');if(bv)bv.textContent=draft.turbos?dec(draft.boost,1)+' bar':tx('no turbos');updateSheetStats()}
+  else if(a==='boost'){draft.boost=+t.value;$('#boostv').textContent=draft.turbos?dec(draft.boost,1)+' bar':tx('no turbos');updateSheetStats()}
   else if(a==='ewo'){draft.wo=+t.value||null;updateSheetStats()}
   else if(a==='cw'){draft.cw=+t.value||null;updateSheetStats()}
   else if(a==='color'){draft.color=t.value;const h=$('#chex');if(h)h.value=t.value;document.querySelectorAll('.swatch').forEach(s=>s.setAttribute('aria-pressed','false'));updateSheetStats()}
@@ -1195,6 +1486,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()})
 
 /* ============ BOOT ============ */
 function start(data){
+  document.documentElement.lang=LANG;
   S=migrate((data&&data.S)||null)||load();
   if(!S||S.over){S=null;showSetup(false);return}
   tab=(data&&data.tab)||'hq';
