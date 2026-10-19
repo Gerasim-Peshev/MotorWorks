@@ -16,4 +16,4 @@ Once opened, the game works offline. Each device keeps its own save.
 To move a company between devices: Menu > Copy save code, send it to
 yourself, then paste it on the other device's start screen.
 Test locally: run  python3 -m http.server  in this folder and open
-http://localhost:8000 (service workers need https or localhost).
+http://localhost:8000 (service workers need https or localhost).   
