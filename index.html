@@ -691,7 +691,7 @@ const BG={
 'Model name':'Име на модела','Version name':'Име на версията','e.g. 2.0d 4x4':'напр. 2.0d 4x4','Drive':'Задвижване','Limited-slip diff':'LSD диференциал','Suspension':'Окачване','Interior':'Интериор','Body material':'Материал на каросерията','Headlights':'Фарове','Comfort & tech':'Комфорт и технологии','Paint':'Боя','Any colour':'Всеки цвят','Hex colour':'Hex цвят','Any RGB colour':'Всеки RGB цвят',
 'Curb weight override (kg)':'Ръчно тегло на колата (кг)','Price (leave blank for suggested)':'Цена (празно = препоръчана)','Suggested':'Препоръчана','Launch version':'Пусни версията','Launch model':'Пусни модела',
 /* setup */
-'You start with {cash}, a rented garage and three staff.':'Започвате с {cash}, нает гараж и трима служители.','{n} older technologies come already researched.':'{n} по-стари технологии са вече изследвани.','Nothing is researched yet.':'Още нищо не е изследвано.','No engines or cars: you design everything.':'Без двигатели и коли: вие проектирате всичко.',
+'You start with {cash}, a rented garage and three staff.':'Започвате с {cash}, нает гараж и трима служители.','{n} technologies are already invented and waiting for you to research them.':'{n} технологии вече са изобретени и чакат да ги изследвате.','No engines or cars: you design everything.':'Без двигатели и коли: вие проектирате всичко.',
 'Found your company':'Основете компанията си','Company name':'Име на компанията','Start year':'Начална година','{y}s':'{y}-те','Difficulty':'Трудност','Open the garage':'Отвори гаража',
 'Continue from another device':'Продължи от друго устройство','On your other device, open the menu and tap Copy save code. Paste it here.':'На другото устройство отворете менюто и натиснете „Копирай кода на играта“. Поставете го тук.','Paste save code':'Поставете кода','Load save':'Зареди играта',
 /* reviews */
@@ -751,7 +751,7 @@ function newGame(name,sy,diff){
   name=(name||'').trim()||'Kestrel Motors';sy=clamp(Math.round(sy||1970),1970,2025);diff=DIFF[diff]?diff:'easy';
   const d0=dayOf(sy,1),inf=infl(sy);
   const s={v:2,name,diff,startY:sy,day:d0,money:DIFF[diff].cash*inf,rp:15,rep:15,aware:.05,hq:1,staff:{eng:2,des:1,mkt:0},
-    tech:TECH.filter(t=>t.y<=sy-3).map(t=>t.id),engines:[],cars:[],comp:newComps(sy,DIFF[diff].k),
+    tech:[],engines:[],cars:[],comp:newComps(sy,DIFF[diff].k),
     news:[],mods:[],mkt:[],yr:{me:0,comp:COMPS0.map(()=>0)},lastYr:null,years:[],hist:[],pl:[],ana:newAna(),anaLast:null,
     evDone:EVENTS.filter(e=>dayOf(e.y,e.m)<=d0).map(e=>e.id),races:{},speed:1,won:false,over:false,nid:1};
   s.news.push({d:d0,k:'{name} opens its doors in a rented garage. Design your first engine, then build a car around it.',p:{name}});
@@ -1334,8 +1334,8 @@ function updateSheetStats(){if(sheet==='engine')$('#estats').innerHTML=engStatsH
 /* ============ SETUP ============ */
 const ERAS=[[1970,'Carburettors and pushrods. A wide-open market.'],[1975,'Oil-crisis years. Small, thrifty cars rule.'],[1980,'Fuel injection and turbos arrive.'],[1985,'Robots, ABS and the first supercars.'],[1990,'Emission limits begin. The SUV boom is coming.'],[1995,'Airbags and twin-turbos are standard kit.'],[2000,'Diesel boom and green buyers. Rivals are strong.'],[2005,'Carbon fibre and dual-clutch gearboxes.'],[2010,'Electric cars become possible. A mature, tough market.'],[2015,'Clean cars surge after the emissions scandal.'],[2020,'Pandemic, chip shortage and the EV race.'],[2025,'Established rivals everywhere.']];
 const eraText=y=>{let t=ERAS[0][1];for(const[a,b]of ERAS)if(y>=a)t=b;return tx(t)};
-function setupNote(){const inf=infl(setupYear),pre=TECH.filter(t=>t.y<=setupYear-3).length;
-  return `<b>${eraText(setupYear)}</b> <span class="muted">${tx('You start with {cash}, a rented garage and three staff.',{cash:fm(DIFF[setupDiff].cash*inf)})} ${pre?tx('{n} older technologies come already researched.',{n:pre}):tx('Nothing is researched yet.')} ${tx('No engines or cars: you design everything.')}</span>`}
+function setupNote(){const inf=infl(setupYear),pre=TECH.filter(t=>t.y<=setupYear).length;
+  return `<b>${eraText(setupYear)}</b> <span class="muted">${tx('You start with {cash}, a rented garage and three staff.',{cash:fm(DIFF[setupDiff].cash*inf)})} ${tx('{n} technologies are already invented and waiting for you to research them.',{n:pre})} ${tx('No engines or cars: you design everything.')}</span>`}
 function showSetup(cancel){
   if(S)setSpeed(0);closeModal();
   let el=$('#setup');const keepName=el&&$('#setupName')?$('#setupName').value:'';const keepCode=el&&$('#importCode')?$('#importCode').value:'';
