@@ -24,7 +24,7 @@
 :root{
   --bg:#e7eae3; --surface:#f6f7f2; --sunk:#dde1d8; --ink:#18201b; --muted:#5a6560; --line:#c6cdc2;
   --accent:#f2b705; --on-accent:#1a1a12; --green:#1d5a3b; --good:#2f8a55; --bad:#c2412d; --warn:#b77a06;
-  --glass:#2b3a44; --tyre:#1c1f22; --rim:#9aa3a6; --shadow:rgba(20,30,25,.16);
+  --glass:#2b3a44; --tyre:#1c1f22; --arch:#141816; --rim:#9aa3a6; --shadow:rgba(20,30,25,.16);
   --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
   --body:"Barlow","Segoe UI",system-ui,sans-serif;
   --r:10px;
@@ -32,11 +32,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#101412; --surface:#181e1a; --sunk:#0c0f0d; --ink:#e6eae2; --muted:#94a097; --line:#2b342e;
   --accent:#f5c22b; --on-accent:#16140a; --green:#5fbf88; --good:#5fbf88; --bad:#ee6a52; --warn:#e2a93a;
-  --glass:#3b5463; --tyre:#050606; --rim:#7d878a; --shadow:rgba(0,0,0,.45); color-scheme:dark}}
+  --glass:#3b5463; --tyre:#050606; --arch:#000; --rim:#7d878a; --shadow:rgba(0,0,0,.45); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#101412; --surface:#181e1a; --sunk:#0c0f0d; --ink:#e6eae2; --muted:#94a097; --line:#2b342e;
   --accent:#f5c22b; --on-accent:#16140a; --green:#5fbf88; --good:#5fbf88; --bad:#ee6a52; --warn:#e2a93a;
-  --glass:#3b5463; --tyre:#050606; --rim:#7d878a; --shadow:rgba(0,0,0,.45); color-scheme:dark}
+  --glass:#3b5463; --tyre:#050606; --arch:#000; --rim:#7d878a; --shadow:rgba(0,0,0,.45); color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent;font-variant-numeric:tabular-nums}
@@ -163,6 +163,18 @@ td.n,th.n{text-align:right}
 .lane.me{outline:2px solid var(--accent)}
 .cyl{display:flex;flex-wrap:wrap;gap:5px;align-items:center;justify-content:center;padding:14px;background:var(--sunk);border-radius:8px;min-height:90px}
 .cyl i{border-radius:50%;border:3px solid var(--muted);background:radial-gradient(circle at 40% 35%,var(--rim),var(--tyre))}
+
+.diffchip{display:inline-block;background:var(--accent);color:var(--on-accent);border-radius:4px;padding:0 5px;letter-spacing:.06em}
+.trim{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+.trimname{font-family:var(--display);font-size:1.15rem;text-transform:uppercase;letter-spacing:.03em}
+input.num{width:110px;text-align:right;font-weight:700}
+input[type=color]{width:52px;height:44px;padding:2px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg)}
+.anagrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+.diag{width:100%;height:auto;display:block;background:var(--sunk);border-radius:8px}
+.cylf{fill:var(--surface);stroke:var(--muted);stroke-width:2;animation:fire 1.8s linear infinite}
+.cyln{font:700 11px var(--body);fill:var(--ink)}
+@keyframes fire{0%,10%{fill:var(--accent);stroke:var(--ink)}22%,100%{fill:var(--surface);stroke:var(--muted)}}
+textarea.code{width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:9px;font:inherit;font-size:.75rem}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -173,7 +185,7 @@ td.n,th.n{text-align:right}
 
 <script>
 "use strict";
-/* ============ DATA ============ */
+/* ============ BASICS ============ */
 const DAY0=Date.UTC(1970,0,1), MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const SAVEKEY='motorworks-tycoon-v1';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -182,95 +194,221 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 const infl=y=>Math.pow(1.04,y-1970);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+const DIFF={
+ easy:{n:'Easy',k:1,cash:1.5e6,d:'The original balance. Relaxed growth.'},
+ normal:{n:'Normal',k:3,cash:1.2e6,d:'About three times harder: fewer buyers, pricier research, upgrades and staff.'},
+ hard:{n:'Hard',k:5,cash:1e6,d:'About five times harder. Every launch has to count.'}};
+const dk=()=>DIFF[S.diff||'easy'].k;
+const demandMul=()=>Math.pow(dk(),-.45);
+const costMul=()=>Math.pow(dk(),.4);
+const rpMul=()=>Math.pow(dk(),-.35);
+const unitMul=()=>1+.025*(dk()-1);
+
+/* ============ RESEARCH ============ */
+const T=(id,n,y,rp,c,g,d)=>({id,n,y,rp,c,g,d});
 const TECH=[
- {id:'sohc',n:'Overhead camshaft (SOHC)',y:1970,rp:25,c:40e3,g:'Engine',d:'Higher-revving heads: more power per litre.'},
- {id:'crumple',n:'Crumple zones',y:1971,rp:35,c:60e3,g:'Safety',d:'Body structures that absorb crash energy.'},
- {id:'rotary',n:'Rotary engine',y:1972,rp:90,c:250e3,g:'Engine',d:'Compact twin-rotor engine with huge specific output. Thirsty and fragile.'},
- {id:'m5',n:'5-speed manual',y:1974,rp:45,c:90e3,g:'Drivetrain',d:'Taller top gear for economy, closer ratios for pace.'},
- {id:'qa1',n:'Quality control I',y:1974,rp:60,c:120e3,g:'Factory',d:'+3 reliability on every engine.'},
- {id:'v12',n:'V10 & V12 layouts',y:1975,rp:110,c:350e3,g:'Engine',d:'Unlock big multi-cylinder engines for luxury and supercars.'},
- {id:'turbo',n:'Turbocharging',y:1976,rp:120,c:300e3,g:'Engine',d:'+42% power from exhaust energy. Hurts reliability.'},
- {id:'efi',n:'Fuel injection',y:1978,rp:100,c:250e3,g:'Engine',d:'+12% power and around 12% better economy.'},
- {id:'a4',n:'4-speed automatic',y:1979,rp:80,c:200e3,g:'Drivetrain',d:'Smoother and more comfortable than the 3-speed.'},
- {id:'dohc',n:'Twin camshaft (DOHC)',y:1980,rp:150,c:400e3,g:'Engine',d:'Four valves per cylinder and a big jump in output.'},
- {id:'awd',n:'All-wheel drive',y:1981,rp:160,c:450e3,g:'Drivetrain',d:'Traction for rallies, SUVs and wet roads.'},
- {id:'cat',n:'Catalytic converter',y:1983,rp:110,c:300e3,g:'Engine',d:'Cuts tailpipe emissions by about 22%.'},
- {id:'robots',n:'Robotic assembly',y:1984,rp:180,c:900e3,g:'Factory',d:'Unit production costs fall 10%.'},
- {id:'abs',n:'ABS brakes',y:1985,rp:130,c:350e3,g:'Safety',d:'Anti-lock braking. Big boost to safety ratings.'},
- {id:'alu',n:'Aluminium engine blocks',y:1986,rp:140,c:380e3,g:'Engine',d:'Engines 26% lighter.'},
- {id:'super',n:'Supercar platform',y:1986,rp:220,c:1.2e6,g:'Bodies',d:'Mid-engine wedge body for the fastest cars on earth.'},
- {id:'suvbody',n:'SUV body',y:1988,rp:160,c:600e3,g:'Bodies',d:'Tall, rugged and very practical.'},
- {id:'airbag',n:'Airbags',y:1989,rp:200,c:500e3,g:'Safety',d:'The biggest single safety upgrade.'},
- {id:'twin',n:'Twin-turbo',y:1990,rp:240,c:800e3,g:'Engine',d:'+68% power over naturally aspirated.'},
- {id:'albody',n:'Aluminium body',y:1992,rp:260,c:900e3,g:'Bodies',d:'Body shell 20% lighter.'},
- {id:'m6',n:'6-speed manual',y:1993,rp:180,c:500e3,g:'Drivetrain',d:'Six close ratios.'},
- {id:'qa2',n:'Quality control II',y:1995,rp:220,c:700e3,g:'Factory',d:'+4 reliability on every engine.'},
- {id:'crossover',n:'Crossover body',y:1997,rp:240,c:900e3,g:'Bodies',d:'SUV looks on a car platform. Buyers love it.'},
- {id:'lean',n:'Lean manufacturing',y:2000,rp:300,c:2.2e6,g:'Factory',d:'Unit production costs fall another 10%.'},
- {id:'a6',n:'6-speed automatic',y:2002,rp:260,c:900e3,g:'Drivetrain',d:'Comfort and economy together.'},
- {id:'carbon',n:'Carbon-fibre body',y:2004,rp:420,c:2.8e6,g:'Bodies',d:'Body shell 38% lighter. Very expensive.'},
- {id:'dct',n:'Dual-clutch gearbox',y:2007,rp:360,c:1.8e6,g:'Drivetrain',d:'Lightning shifts for the quickest launches.'},
- {id:'ev',n:'Electric drivetrain',y:2008,rp:600,c:4e6,g:'Engine',d:'Battery-electric motors. Zero emissions, instant torque.'},
- {id:'qa3',n:'Quality control III',y:2010,rp:400,c:2e6,g:'Factory',d:'+4 reliability on every engine.'},
- {id:'adas',n:'Driver assistance',y:2012,rp:420,c:2.4e6,g:'Safety',d:'Lane keeping and automatic emergency braking.'},
+ T('sohc','Overhead camshaft (SOHC)',1970,25,40e3,'Engine','Higher-revving heads: more power per litre.'),
+ T('leaf','Leaf-spring suspension',1970,15,20e3,'Chassis','Tough, cheap springs for pickups, vans and trucks.'),
+ T('crumple','Crumple zones',1971,35,60e3,'Safety','Body structures that absorb crash energy.'),
+ T('sc','Superchargers',1971,60,150e3,'Engine','Belt-driven boost in three sizes, with instant response.'),
+ T('rotary','Rotary engine',1972,90,250e3,'Engine','Compact twin-rotor engine. Huge output, thirsty and fragile.'),
+ T('lsd','Limited-slip differential',1972,50,120e3,'Chassis','Puts power down out of corners: better handling and traction.'),
+ T('ac','Air conditioning',1972,40,90e3,'Comfort','Cool cabins sell cars everywhere.'),
+ T('ltruck','Cargo truck',1974,90,400e3,'Bodies','Light box truck for the commercial market.'),
+ T('m5','5-speed manual',1974,45,90e3,'Drivetrain','Taller top gear for economy, closer ratios for pace.'),
+ T('qa1','Quality control I',1974,60,120e3,'Factory','+3 reliability on every engine.'),
+ T('v12','V10 & V12 layouts',1975,110,350e3,'Engine','Big multi-cylinder engines for luxury and supercars.'),
+ T('sportsusp','Sport suspension',1975,60,150e3,'Chassis','Stiffer springs and dampers. Sharper, less comfortable.'),
+ T('cruise','Cruise control',1975,40,80e3,'Comfort','Holds speed on long motorway runs.'),
+ T('turbo','Turbocharger',1976,120,300e3,'Engine','One turbo, up to 0.8 bar of boost.'),
+ T('famsed','Family sedan body',1976,70,300e3,'Bodies','Long-wheelbase sedan with a big cabin and boot.'),
+ T('ewin','Electric windows',1976,30,60e3,'Comfort','Small luxury, big showroom appeal.'),
+ T('mpi','Multi-point injection',1978,100,250e3,'Engine','An injector per cylinder: +10% power, about 10% better economy.'),
+ T('van','Van body',1978,90,350e3,'Bodies','Panel van for tradespeople and fleets.'),
+ T('a4','4-speed automatic',1979,80,200e3,'Drivetrain','Smoother and more comfortable than the 3-speed.'),
+ T('dohc','Twin camshaft (DOHC)',1980,150,400e3,'Engine','Four valves per cylinder and a big jump in output.'),
+ T('lpg','LPG fuel system',1980,80,200e3,'Engine','Autogas: cheap to run, lower CO₂, slightly less power.'),
+ T('awd','All-wheel drive',1981,160,450e3,'Drivetrain','Traction for rallies, SUVs and wet roads.'),
+ T('htruck','Heavy truck',1982,200,1.2e6,'Bodies','Three-axle rigid truck. Big money in the commercial segment.'),
+ T('cat','Catalytic converter',1983,110,300e3,'Engine','Cuts harmful emissions by about 15%.'),
+ T('robots','Robotic assembly',1984,180,900e3,'Factory','Unit production costs fall 10%.'),
+ T('ssedan','Sport sedan body',1984,140,600e3,'Bodies','A four-door that can embarrass coupés.'),
+ T('coil','Coilover suspension',1984,120,350e3,'Chassis','Adjustable race-style dampers. Best handling, harsh ride.'),
+ T('abs','ABS brakes',1985,130,350e3,'Safety','Anti-lock braking. A big boost to safety ratings.'),
+ T('heat','Heated seats',1985,40,90e3,'Comfort','Warm seats on cold mornings.'),
+ T('alu','Aluminium engine blocks',1986,140,380e3,'Engine','Engines 20% lighter.'),
+ T('super','Supercar platform',1986,220,1.2e6,'Bodies','Mid-engine wedge body for the fastest cars on earth.'),
+ T('suvbody','SUV body',1988,160,600e3,'Bodies','Tall, rugged and very practical.'),
+ T('airbag','Airbags',1989,200,500e3,'Safety','The biggest single safety upgrade.'),
+ T('a5','5-speed automatic',1989,120,350e3,'Drivetrain','One more ratio: smoother and more economical.'),
+ T('vvt','Variable valve timing',1989,180,500e3,'Engine','+8% power across the rev range.'),
+ T('twin','Twin-turbo',1990,240,800e3,'Engine','Up to two turbos and 1.3 bar of boost.'),
+ T('air','Air suspension',1990,200,700e3,'Chassis','Floating ride and self-levelling. Luxury buyers love it.'),
+ T('rotary4','Three & four-rotor engines',1990,260,900e3,'Engine','Bigger rotaries for serious power.'),
+ T('xenon','Xenon headlights',1992,120,400e3,'Comfort','Bright blue-white light. Safer and more upmarket.'),
+ T('albody','Aluminium body',1992,260,900e3,'Bodies','Body shell 20% lighter.'),
+ T('m6','6-speed manual',1993,180,500e3,'Drivetrain','Six close ratios.'),
+ T('cvt','CVT gearbox',1995,160,500e3,'Drivetrain','Stepless and smooth. Very economical, dull to drive.'),
+ T('esc','Stability control',1995,150,450e3,'Safety','Catches skids before they happen.'),
+ T('nav','Satellite navigation',1995,140,400e3,'Comfort','Built-in maps and route guidance.'),
+ T('park','Parking sensors',1995,60,150e3,'Comfort','Beeps before you hit the bollard.'),
+ T('qa2','Quality control II',1995,220,700e3,'Factory','+4 reliability on every engine.'),
+ T('gdi','Direct injection',1997,260,900e3,'Engine','Petrol direct injection and common-rail diesel. More power, better economy.'),
+ T('crossover','Crossover body',1997,240,900e3,'Bodies','SUV looks on a car platform. Buyers love it.'),
+ T('micro','Micro car body',1997,120,500e3,'Bodies','Two-seat city car that parks anywhere.'),
+ T('wengine','W8, W12 & W16 engines',1999,400,2.5e6,'Engine','Two narrow-angle V banks on one crank. Huge, compact power.'),
+ T('acc','Adaptive cruise control',2000,180,600e3,'Comfort','Keeps its distance to the car ahead.'),
+ T('lean','Lean manufacturing',2000,300,2.2e6,'Factory','Unit production costs fall another 10%.'),
+ T('rearcam','Rear-view camera',2002,90,250e3,'Comfort','See what is behind you when reversing.'),
+ T('a6','6-speed automatic',2002,260,900e3,'Drivetrain','Comfort and economy together.'),
+ T('dct','6-speed dual-clutch',2003,300,1.2e6,'Drivetrain','Lightning shifts for the quickest launches.'),
+ T('turbo2','Quad-turbo, high boost',2003,350,1.5e6,'Engine','Up to four turbos and 2.5 bar of boost.'),
+ T('carbon','Carbon-fibre body',2004,420,2.8e6,'Bodies','Body shell 38% lighter. Very expensive.'),
+ T('keyless','Keyless entry',2004,80,200e3,'Comfort','Walk up, open, drive.'),
+ T('vent','Ventilated seats',2005,90,250e3,'Comfort','Cooled seats for hot summers.'),
+ T('a8','8-speed automatic',2007,300,1.2e6,'Drivetrain','Eight ratios: smooth, quick and frugal.'),
+ T('led','LED headlights',2007,160,500e3,'Comfort','Sharp, efficient lighting with a modern look.'),
+ T('dct7','7-speed dual-clutch',2008,260,1e6,'Drivetrain','One more ratio for the dual-clutch.'),
+ T('cam360','360° cameras',2008,200,600e3,'Comfort','Bird’s-eye view for tight parking.'),
+ T('ev','Electric drivetrain',2008,600,4e6,'Engine','Battery-electric motors. Zero tailpipe emissions, instant torque.'),
+ T('hud','Head-up display',2010,150,450e3,'Comfort','Speed and directions on the windscreen.'),
+ T('qa3','Quality control III',2010,400,2e6,'Factory','+4 reliability on every engine.'),
+ T('adas','Driver assistance (Level 2)',2012,420,2.4e6,'Safety','Lane keeping and automatic emergency braking.'),
+ T('laser','Laser headlights',2014,260,1.2e6,'Comfort','Twice the range of LEDs. Pure prestige.'),
+ T('dct8','8-speed dual-clutch',2015,320,1.5e6,'Drivetrain','Eight close ratios, instant shifts.'),
+ T('carplay','Android Auto & CarPlay',2015,100,300e3,'Comfort','Phone apps on the dashboard screen.'),
+ T('turbo3','Hyper-boost turbos',2016,600,5e6,'Engine','Up to ten turbos at up to 10 bar each. Wild power, fragile engines.'),
+ T('dct9','9-speed dual-clutch',2019,360,1.8e6,'Drivetrain','The most ratios on the market.'),
+ T('selfdrive','Self-driving (Level 3)',2021,800,8e6,'Safety','Hands-off, eyes-off motorway driving.'),
 ];
+const techName=id=>(TECH.find(t=>t.id===id)||{}).n;
+const techYear=id=>(TECH.find(t=>t.id===id)||{}).y;
+
+/* ============ ENGINE PARTS ============ */
 const LAYOUTS={
- i3:{n:'Inline-3',cyl:3,rel:1,cost:0},
- i4:{n:'Inline-4',cyl:4,rel:2,cost:0},
- b4:{n:'Flat-4',cyl:4,rel:0,cost:90,wM:1.05},
- i6:{n:'Inline-6',cyl:6,rel:3,cost:110},
- v6:{n:'V6',cyl:6,rel:0,cost:160},
- v8:{n:'V8',cyl:8,rel:0,cost:260},
- v10:{n:'V10',cyl:10,rel:-3,cost:520,t:'v12'},
- v12:{n:'V12',cyl:12,rel:-4,cost:820,t:'v12'},
- rot:{n:'Twin-rotor',cyl:2,rotary:1,cost:300,t:'rotary'},
- ev:{n:'Electric',ev:1,t:'ev'},
+ i3:{n:'Inline-3',cyl:3,k:'i',rel:1,cost:0,fo:[1,2,3]},
+ i4:{n:'Inline-4',cyl:4,k:'i',rel:2,cost:0,fo:[1,3,4,2]},
+ i5:{n:'Inline-5',cyl:5,k:'i',rel:1,cost:60,fo:[1,2,4,5,3]},
+ i6:{n:'Inline-6',cyl:6,k:'i',rel:3,cost:110,fo:[1,5,3,6,2,4]},
+ i8:{n:'Straight-8',cyl:8,k:'i',rel:-2,cost:300,wM:1.08,fo:[1,6,2,5,8,3,7,4]},
+ b4:{n:'Flat-4',cyl:4,k:'b',rel:0,cost:90,wM:1.05,fo:[1,3,2,4]},
+ b6:{n:'Flat-6',cyl:6,k:'b',rel:0,cost:220,wM:1.05,fo:[1,6,2,4,3,5]},
+ v6:{n:'V6',cyl:6,k:'v',rel:0,cost:160,wM:.97,fo:[1,4,2,5,3,6]},
+ v8:{n:'V8',cyl:8,k:'v',rel:0,cost:260,wM:.95,fo:[1,8,4,3,6,5,7,2]},
+ v10:{n:'V10',cyl:10,k:'v',rel:-3,cost:520,wM:.95,t:'v12',fo:[1,6,5,10,2,7,3,8,4,9]},
+ v12:{n:'V12',cyl:12,k:'v',rel:-4,cost:820,wM:.95,t:'v12',fo:[1,7,5,11,3,9,6,12,2,8,4,10]},
+ w8:{n:'W8',cyl:8,k:'w',rel:-4,cost:700,wM:1.05,t:'wengine',fo:[1,5,4,8,6,3,7,2]},
+ w12:{n:'W12',cyl:12,k:'w',rel:-5,cost:1100,wM:1.03,t:'wengine',fo:[1,12,5,8,3,10,6,7,2,11,4,9]},
+ w16:{n:'W16',cyl:16,k:'w',rel:-7,cost:1800,wM:1.03,t:'wengine',fo:[1,14,9,4,7,12,15,6,13,8,3,16,11,2,5,10]},
+ r2:{n:'Twin-rotor',rot:2,cyl:2,k:'r',rel:-16,cost:300,t:'rotary',fo:[1,2]},
+ r3:{n:'Three-rotor',rot:3,cyl:3,k:'r',rel:-18,cost:550,t:'rotary4',fo:[1,2,3]},
+ r4:{n:'Four-rotor',rot:4,cyl:4,k:'r',rel:-20,cost:800,t:'rotary4',fo:[1,2,3,4]},
+ ev:{n:'Electric',ev:1,k:'e',t:'ev'},
 };
 const VALVES={ohv:{n:'Pushrod (OHV)',s:38,c:0},sohc:{n:'SOHC',s:46,c:60,t:'sohc'},dohc:{n:'DOHC',s:56,c:150,t:'dohc'}};
-const FUELS={carb:{n:'Carburettor'},efi:{n:'Fuel injection',t:'efi'}};
-const ASPS={na:{n:'Naturally aspirated',p:1,q:1,c:0},turbo:{n:'Turbo',p:1.42,q:1.5,c:240,t:'turbo'},twin:{n:'Twin-turbo',p:1.68,q:1.75,c:480,t:'twin'}};
-const EMATS={iron:{n:'Cast iron'},alu:{n:'Aluminium',t:'alu'}};
+const FUELS={
+ petrol:{n:'Petrol',p:1,q:1,eco:1,co2:23.7,w:1,cost:0,rel:0,rpm:0},
+ diesel:{n:'Diesel',p:.55,q:.9,eco:.78,co2:26.5,w:1.18,cost:250,rel:3,rpm:-1700},
+ lpg:{n:'LPG',p:.93,q:.95,eco:1.22,co2:16.3,w:1.02,cost:150,rel:0,rpm:0,t:'lpg'}};
+const INJ={
+ carb:{n:'Carburettor',p:1,eco:1,cost:0,f:['petrol','lpg']},
+ mech:{n:'Mechanical injection',p:1,eco:1,cost:80,f:['diesel']},
+ mpi:{n:'Multi-point injection',p:1.1,eco:.9,cost:120,t:'mpi',f:['petrol','lpg']},
+ di:{n:'Direct injection',p:1.15,eco:.85,cost:260,t:'gdi',f:['petrol','diesel']}};
+const SCS={none:{n:'None',p:1,rel:0,cost:0,w:0,eco:1},s:{n:'Small',p:1.15,rel:3,cost:150,w:12,eco:1.04,t:'sc'},m:{n:'Medium',p:1.3,rel:5,cost:250,w:18,eco:1.07,t:'sc'},l:{n:'Large',p:1.45,rel:8,cost:400,w:25,eco:1.1,t:'sc'}};
+const EMATS={iron:{n:'Cast iron',w:1,cost:0},alu:{n:'Aluminium',w:.8,cost:180,t:'alu'}};
+function turboCap(){if(has('turbo3'))return{n:10,b:10};if(has('turbo2'))return{n:4,b:2.5};if(has('twin'))return{n:2,b:1.3};if(has('turbo'))return{n:1,b:.8};return{n:0,b:0}}
+
+/* ============ CAR PARTS ============ */
 const BODIES={
- hatch:{n:'Hatchback',w:760,comfort:40,prac:58,sport:35,safety:0,cost:800,aero:1,seg:{eco:1,fam:.6,sport:.35,lux:.1,util:.15,green:.9}},
- sedan:{n:'Sedan',w:940,comfort:56,prac:62,sport:40,safety:3,cost:1000,aero:1.02,seg:{eco:.6,fam:1,sport:.35,lux:.9,util:.15,green:.7}},
- wagon:{n:'Estate',w:1000,comfort:54,prac:86,sport:28,safety:3,cost:1050,aero:.99,seg:{eco:.5,fam:1,sport:.15,lux:.4,util:.55,green:.6}},
- coupe:{n:'Coupé',w:900,comfort:42,prac:28,sport:75,safety:0,cost:1150,aero:1.06,seg:{eco:.2,fam:.15,sport:1,lux:.6,util:0,green:.2}},
- cabrio:{n:'Convertible',w:940,comfort:46,prac:18,sport:72,safety:-6,cost:1350,aero:1,seg:{eco:.1,fam:.05,sport:.9,lux:.7,util:0,green:.15}},
- pickup:{n:'Pickup',w:1250,comfort:30,prac:90,sport:15,safety:2,cost:1000,aero:.85,seg:{eco:.15,fam:.3,sport:.05,lux:.05,util:1,green:.1}},
- suv:{n:'SUV',w:1400,comfort:55,prac:88,sport:20,safety:6,cost:1450,aero:.88,t:'suvbody',seg:{eco:.1,fam:.75,sport:.1,lux:.55,util:1,green:.25}},
- cross:{n:'Crossover',w:1180,comfort:52,prac:78,sport:30,safety:5,cost:1250,aero:.94,t:'crossover',seg:{eco:.35,fam:.95,sport:.15,lux:.45,util:.7,green:.6}},
- super:{n:'Supercar',w:980,comfort:28,prac:6,sport:100,safety:-2,cost:2600,aero:1.14,t:'super',seg:{eco:0,fam:0,sport:1,lux:.8,util:0,green:.05}},
+ micro:{n:'Micro car',w:720,comfort:32,prac:30,sport:25,safety:-6,cost:750,aero:.95,vm:.85,t:'micro',seg:{eco:1,fam:.1,sport:.1,lux:.05,util:0,green:1,com:.05}},
+ hatch:{n:'Hatchback',w:800,comfort:40,prac:58,sport:35,safety:0,cost:800,aero:1,vm:1,seg:{eco:1,fam:.6,sport:.35,lux:.1,util:.15,green:.9,com:.1}},
+ sedan:{n:'Sedan',w:960,comfort:56,prac:62,sport:40,safety:3,cost:1000,aero:1.02,vm:1,seg:{eco:.6,fam:1,sport:.35,lux:.9,util:.15,green:.7,com:.1}},
+ fsedan:{n:'Family sedan',w:1080,comfort:64,prac:72,sport:30,safety:5,cost:1150,aero:1,vm:1.05,t:'famsed',seg:{eco:.4,fam:1.1,sport:.15,lux:.7,util:.2,green:.6,com:.15}},
+ ssedan:{n:'Sport sedan',w:1000,comfort:50,prac:58,sport:70,safety:3,cost:1350,aero:1.05,vm:1.1,t:'ssedan',seg:{eco:.2,fam:.5,sport:.9,lux:.8,util:.05,green:.2,com:0}},
+ wagon:{n:'Estate',w:1020,comfort:54,prac:86,sport:28,safety:3,cost:1050,aero:.99,vm:1,seg:{eco:.5,fam:1,sport:.15,lux:.4,util:.55,green:.6,com:.3}},
+ coupe:{n:'Coupé',w:920,comfort:42,prac:28,sport:75,safety:0,cost:1150,aero:1.06,vm:1.05,seg:{eco:.2,fam:.15,sport:1,lux:.6,util:0,green:.2,com:0}},
+ cabrio:{n:'Convertible',w:960,comfort:46,prac:18,sport:72,safety:-6,cost:1350,aero:1,vm:1.1,seg:{eco:.1,fam:.05,sport:.9,lux:.7,util:0,green:.15,com:0}},
+ pickup:{n:'Pickup',w:1300,comfort:30,prac:90,sport:15,safety:2,cost:1000,aero:.85,vm:1,seg:{eco:.15,fam:.3,sport:.05,lux:.05,util:1,green:.1,com:.6}},
+ suv:{n:'SUV',w:1450,comfort:55,prac:88,sport:20,safety:6,cost:1450,aero:.88,vm:1.1,t:'suvbody',seg:{eco:.1,fam:.75,sport:.1,lux:.55,util:1,green:.25,com:.2}},
+ cross:{n:'Crossover',w:1200,comfort:52,prac:78,sport:30,safety:5,cost:1250,aero:.94,vm:1.05,t:'crossover',seg:{eco:.35,fam:.95,sport:.15,lux:.45,util:.7,green:.6,com:.1}},
+ super:{n:'Supercar',w:1000,comfort:28,prac:6,sport:100,safety:-2,cost:2600,aero:1.14,vm:1.6,t:'super',seg:{eco:0,fam:0,sport:1,lux:.8,util:0,green:.05,com:0}},
+ van:{n:'Van',vmax:170,w:1500,comfort:34,prac:95,sport:5,safety:2,cost:1200,aero:.8,vm:1.1,t:'van',seg:{eco:0,fam:.45,sport:0,lux:0,util:.5,green:.1,com:1}},
+ ltruck:{n:'Cargo truck',vmax:140,w:2500,comfort:28,prac:100,sport:0,safety:0,cost:2200,aero:.7,vm:1.8,t:'ltruck',seg:{eco:0,fam:0,sport:0,lux:0,util:.2,green:0,com:1.15}},
+ htruck:{n:'Heavy truck',vmax:120,w:6500,comfort:30,prac:100,sport:0,safety:0,cost:6000,aero:.62,vm:3.6,t:'htruck',seg:{eco:0,fam:0,sport:0,lux:0,util:0,green:0,com:1.3}},
 };
 const SHAPES={
- hatch:{p:'M34 92 L34 66 Q36 50 52 44 L88 34 L170 33 Q182 33 192 42 L214 58 L268 63 Q290 66 292 80 L292 92 Z',g:'M60 60 L92 40 L166 39 Q175 39 182 45 L200 60 Z',hl:[282,68],tl:[35,64],r:16},
- sedan:{p:'M22 92 L22 72 Q24 63 42 62 L96 58 L126 38 Q130 36 136 36 L200 36 Q208 36 214 41 L240 58 L284 62 Q300 65 300 80 L300 92 Z',g:'M104 58 L130 41 L198 41 Q205 41 210 45 L230 58 Z',hl:[290,67],tl:[23,67],r:16},
- wagon:{p:'M22 92 L22 70 Q22 44 40 40 L200 37 Q208 37 214 42 L240 58 L284 62 Q300 65 300 80 L300 92 Z',g:'M36 60 L44 45 L198 42 Q205 42 210 46 L230 58 Z',hl:[290,67],tl:[23,64],r:16},
- coupe:{p:'M22 92 L22 76 Q26 67 50 65 L110 60 L144 42 Q148 40 154 40 L196 40 Q204 40 210 45 L238 61 L288 66 Q302 70 300 84 L300 92 Z',g:'M118 60 L148 44 L194 44 Q201 44 206 48 L224 60 Z',hl:[290,71],tl:[23,71],r:16},
- cabrio:{p:'M22 92 L22 74 Q26 66 50 64 L196 61 L214 44 L219 44 L208 61 L288 65 Q302 69 300 84 L300 92 Z',g:'M201 61 L214 47 L216 47 L206 61 Z',hl:[290,71],tl:[23,70],r:16},
- pickup:{p:'M18 92 L18 62 L132 62 L132 34 Q132 30 138 30 L196 30 Q204 30 210 36 L234 56 L290 60 Q304 64 302 80 L302 92 Z',g:'M140 56 L140 37 L194 36 Q200 36 205 41 L220 56 Z',hl:[292,65],tl:[19,66],r:18},
- suv:{p:'M18 90 L18 56 Q18 32 38 30 L204 29 Q212 29 218 35 L240 54 L288 58 Q304 62 302 78 L302 90 Z',g:'M32 52 L40 36 L202 35 Q209 35 214 40 L230 52 Z',hl:[292,63],tl:[19,60],r:20},
- cross:{p:'M24 92 L24 62 Q26 42 52 37 L196 33 Q206 33 213 39 L238 57 L286 61 Q302 64 300 80 L300 92 Z',g:'M40 57 L56 42 L194 39 Q202 39 208 44 L226 57 Z',hl:[290,65],tl:[25,63],r:18},
- super:{p:'M18 92 L18 76 L40 70 L120 60 L156 44 Q160 42 168 42 L196 43 L250 64 L302 72 Q308 76 306 92 Z',g:'M126 60 L158 47 L194 47 L230 62 Z',hl:[296,75],tl:[19,74],r:16},
+ micro:{x:[92,232],wh:[[114,15],[208,15]],p:'M92 93 L92 66 Q92 38 118 30 L178 28 Q194 28 204 40 L220 60 Q232 64 232 78 L232 93 Z',g:'M104 58 Q106 40 122 35 L176 34 Q187 34 195 44 L207 58 Z',pil:[[150,34,58]],d:'M150 58 L150 92 M206 60 L208 90',hl:[223,64],tl:[93,57],m:[198,56]},
+ hatch:{x:[34,292],p:'M34 93 L34 66 Q36 50 52 44 L88 34 L170 33 Q182 33 192 42 L214 58 L268 63 Q290 66 292 80 L292 93 Z',g:'M58 60 L90 40 L166 39 Q175 39 182 45 L200 60 Z',pil:[[135,39,60],[80,45,60]],d:'M135 60 L135 92 M200 61 L202 92',hl:[281,67],tl:[35,62],m:[198,57]},
+ sedan:{x:[22,300],p:'M22 93 L22 72 Q24 63 42 62 L96 58 L126 38 Q130 36 136 36 L200 36 Q208 36 214 41 L240 58 L284 62 Q300 65 300 80 L300 93 Z',g:'M104 58 L130 41 L198 41 Q205 41 210 45 L230 58 Z',pil:[[165,41,58]],d:'M165 58 L165 92 M104 59 L102 92 M230 59 L232 92',hl:[289,66],tl:[23,66],m:[226,55]},
+ fsedan:{x:[16,304],wh:[[78,16],[244,16]],p:'M16 93 L16 72 Q18 62 38 61 L90 57 L120 35 Q124 33 132 33 L208 33 Q216 33 222 39 L248 58 L290 62 Q304 65 304 80 L304 93 Z',g:'M98 57 L124 38 L206 38 Q213 38 218 42 L238 57 Z',pil:[[128,38,57],[170,38,57]],d:'M170 57 L170 92 M100 58 L98 92 M238 58 L240 92',hl:[293,66],tl:[17,66],m:[234,54]},
+ ssedan:{x:[22,302],p:'M22 93 L22 74 Q26 64 46 63 L100 59 L134 40 Q138 38 146 38 L196 38 Q206 38 213 44 L242 60 L288 64 Q302 67 302 82 L302 93 Z',g:'M108 59 L138 42 L194 42 Q202 42 207 46 L230 59 Z',pil:[[168,42,59]],d:'M168 59 L168 92 M108 60 L106 92 M230 60 L232 92 M24 63 L54 60',x2:'M262 88 L300 88 L300 92 L262 92 Z',hl:[291,68],tl:[23,68],m:[226,57]},
+ wagon:{x:[22,300],p:'M22 93 L22 70 Q22 44 40 40 L200 37 Q208 37 214 42 L240 58 L284 62 Q300 65 300 80 L300 93 Z',g:'M34 60 L42 45 L198 42 Q205 42 210 46 L230 58 Z',pil:[[92,43,59],[160,42,59]],d:'M160 59 L160 92 M96 60 L96 92 M230 59 L232 92 M44 37 L198 34',hl:[289,66],tl:[23,62],m:[226,55]},
+ coupe:{x:[22,300],p:'M22 93 L22 76 Q26 67 50 65 L110 60 L144 42 Q148 40 154 40 L196 40 Q204 40 210 45 L238 61 L288 66 Q302 70 300 84 L300 93 Z',g:'M118 60 L148 44 L194 44 Q201 44 206 48 L224 60 Z',pil:[[150,44,60]],d:'M150 60 L150 92 M224 61 L226 92',hl:[289,70],tl:[23,70],m:[222,57]},
+ cabrio:{x:[22,300],p:'M22 93 L22 74 Q26 66 50 64 L196 61 L214 44 L219 44 L208 61 L288 65 Q302 69 300 84 L300 93 Z',g:'M201 61 L214 47 L216 47 L206 61 Z',x2:'M118 62 Q120 48 130 48 Q136 48 136 62 Z M152 62 Q154 48 164 48 Q170 48 170 62 Z',d:'M150 63 L150 92 M210 62 L212 92',hl:[289,70],tl:[23,69],m:[212,57]},
+ pickup:{x:[18,302],wh:[[78,18],[244,18]],p:'M18 93 L18 62 L132 62 L132 34 Q132 30 138 30 L196 30 Q204 30 210 36 L234 56 L290 60 Q304 64 302 80 L302 93 Z',g:'M140 56 L140 37 L194 36 Q200 36 205 41 L220 56 Z',pil:[[170,36,56]],d:'M132 62 L132 92 M170 56 L170 92 M222 57 L224 92 M18 67 L132 67',hl:[291,64],tl:[19,66],m:[218,53]},
+ suv:{x:[18,302],wh:[[78,20],[244,20]],p:'M18 90 L18 56 Q18 32 38 30 L204 29 Q212 29 218 35 L240 54 L288 58 Q304 62 302 78 L302 90 Z',g:'M30 52 L38 36 L202 35 Q209 35 214 40 L230 52 Z',pil:[[96,35,52],[162,35,52]],d:'M162 52 L162 88 M100 52 L100 88 M230 53 L232 88 M40 26 L200 25',hl:[292,62],tl:[19,58],m:[228,49]},
+ cross:{x:[24,300],wh:[[80,18],[240,18]],p:'M24 93 L24 62 Q26 42 52 37 L196 33 Q206 33 213 39 L238 57 L286 61 Q302 64 300 80 L300 93 Z',g:'M40 57 L56 42 L194 39 Q202 39 208 44 L226 57 Z',pil:[[95,41,57],[150,40,57]],d:'M150 57 L150 92 M98 58 L98 92 M226 58 L228 92',hl:[289,64],tl:[25,62],m:[224,53]},
+ super:{x:[18,306],p:'M18 93 L18 76 L40 70 L120 60 L156 44 Q160 42 168 42 L196 43 L250 64 L302 72 Q308 76 306 93 Z',g:'M126 60 L158 47 L194 47 L230 62 Z',x2:'M112 76 L146 66 L150 82 L114 84 Z M12 62 L46 62 L46 66 L12 66 Z M30 66 L34 66 L36 72 L32 72 Z',d:'M150 62 L150 92',hl:[294,74],tl:[19,73],m:[230,59]},
+ van:{x:[12,306],wh:[[70,17],[252,17]],p:'M12 93 L12 30 Q12 22 22 22 L222 22 Q232 22 240 32 L262 56 L294 62 Q306 66 306 80 L306 93 Z',g:'M228 28 L236 29 L256 56 L228 56 Z',d:'M222 24 L222 92 M150 24 L150 92 M12 62 L222 62',hl:[295,66],tl:[13,36],tlh:12,m:[250,51]},
+ ltruck:{x:[202,304],wh:[[70,18],[256,18]],box:'M8 90 L8 16 L196 16 L196 90 Z',p:'M202 93 L202 34 Q202 28 208 28 L244 28 Q252 28 258 38 L276 62 Q296 64 300 72 L304 93 Z',g:'M234 33 L246 33 Q252 33 256 40 L268 58 L234 58 Z',x2:'M8 88 L304 88 L304 94 L8 94 Z',d:'M228 32 L228 92 M66 16 L66 90 M132 16 L132 90',hl:[294,74],tl:[9,78],tlh:10,m:[268,48]},
+ htruck:{x:[208,306],wh:[[52,20],[98,20],[262,20]],box:'M4 86 L4 6 L204 6 L204 86 Z',p:'M208 93 L208 18 Q208 12 216 12 L286 12 Q296 12 298 22 L302 70 Q306 74 306 84 L306 93 Z',g:'M262 20 L292 20 L296 54 L262 54 Z',x2:'M4 84 L306 84 L306 92 L4 92 Z M299 58 L303 58 L303 80 L299 80 Z',d:'M256 18 L256 90 M70 6 L70 84 M136 6 L136 84',hl:[296,74],tl:[5,72],tlh:10,m:[302,28]},
 };
 const GEARS={
  m4:{n:'4-speed manual',acc:1,eco:1,comfort:0,rel:1,cost:110,w:40},
  a3:{n:'3-speed auto',acc:1.14,eco:1.12,comfort:8,rel:-1,cost:240,w:60},
  m5:{n:'5-speed manual',acc:.96,eco:.93,comfort:1,rel:1,cost:150,w:42,t:'m5'},
  a4:{n:'4-speed auto',acc:1.07,eco:1.02,comfort:10,rel:-1,cost:300,w:62,t:'a4'},
+ a5:{n:'5-speed auto',acc:1.03,eco:.96,comfort:11,rel:-1,cost:360,w:64,t:'a5'},
  m6:{n:'6-speed manual',acc:.93,eco:.9,comfort:2,rel:0,cost:210,w:45,t:'m6'},
+ cvt:{n:'CVT',acc:1.05,eco:.86,comfort:12,rel:-3,cost:380,w:55,t:'cvt'},
  a6:{n:'6-speed auto',acc:.99,eco:.9,comfort:13,rel:0,cost:420,w:66,t:'a6'},
- dct:{n:'Dual-clutch',acc:.88,eco:.87,comfort:9,rel:-4,cost:620,w:62,t:'dct'},
+ dct:{n:'6-speed DCT',acc:.9,eco:.88,comfort:9,rel:-4,cost:600,w:62,t:'dct'},
+ a8:{n:'8-speed auto',acc:.95,eco:.85,comfort:15,rel:0,cost:520,w:70,t:'a8'},
+ dct7:{n:'7-speed DCT',acc:.88,eco:.86,comfort:10,rel:-3,cost:640,w:64,t:'dct7'},
+ dct8:{n:'8-speed DCT',acc:.86,eco:.84,comfort:11,rel:-2,cost:700,w:66,t:'dct8'},
+ dct9:{n:'9-speed DCT',acc:.85,eco:.83,comfort:11,rel:-2,cost:760,w:68,t:'dct9'},
  ev1:{n:'Single-speed',acc:1,eco:1,comfort:12,rel:3,cost:90,w:25,ev:1},
 };
 const DRIVES={
  fwd:{n:'Front-wheel',acc:1.04,eco:1,comfort:0,rel:0,prac:4,sport:-6,cost:0,w:0},
  rwd:{n:'Rear-wheel',acc:1,eco:1.01,comfort:0,rel:0,prac:0,sport:8,cost:60,w:15},
- awd:{n:'All-wheel',acc:.9,eco:1.07,comfort:2,rel:-2,prac:6,sport:6,cost:320,w:80,t:'awd'},
-};
+ awd:{n:'All-wheel',acc:.9,eco:1.07,comfort:2,rel:-2,prac:6,sport:6,cost:320,w:80,t:'awd'}};
+const SUSP={
+ std:{n:'Standard',comfort:0,sport:0,prac:0,pres:0,cost:0,w:0},
+ leaf:{n:'Leaf springs',comfort:-6,sport:-8,prac:8,pres:-2,cost:-20,w:20,t:'leaf'},
+ sport:{n:'Sport',comfort:-4,sport:8,prac:0,pres:2,cost:120,w:0,t:'sportsusp'},
+ coil:{n:'Coilovers',comfort:-9,sport:15,prac:-2,pres:4,cost:420,w:-5,t:'coil'},
+ air:{n:'Air suspension',comfort:12,sport:3,prac:2,pres:8,cost:900,w:25,t:'air'}};
 const INTS={basic:{n:'Basic',comfort:0,pres:0,cost:90,w:0},standard:{n:'Standard',comfort:12,pres:10,cost:240,w:30},premium:{n:'Premium',comfort:24,pres:24,cost:560,w:60},luxury:{n:'Luxury',comfort:36,pres:42,cost:1400,w:95}};
 const MATS={steel:{n:'Steel',w:1,cost:1,safety:0,pres:0},alu:{n:'Aluminium',w:.8,cost:1.7,safety:2,pres:6,t:'albody'},carbon:{n:'Carbon fibre',w:.62,cost:4.2,safety:4,pres:16,t:'carbon'}};
-const SAFETY={crumple:{n:'Crumple zones',s:14,cost:60,w:15,t:'crumple'},abs:{n:'ABS',s:12,cost:140,w:8,t:'abs'},airbag:{n:'Airbags',s:18,cost:190,w:12,t:'airbag'},adas:{n:'Driver assist',s:16,cost:520,w:6,t:'adas'}};
-const PAINTS=[['Signal yellow','#f2b705'],['Racing green','#1e5a3c'],['Rosso','#c0392b'],['Ocean','#2a6f97'],['Arctic','#e8ebe5'],['Graphite','#3a3f44'],['Bronze','#a5673f'],['Lime','#86b33a']];
+const HEADL={halogen:{n:'Halogen',s:0,pres:0,cost:0},xenon:{n:'Xenon',s:3,pres:4,cost:240,t:'xenon'},led:{n:'LED',s:5,pres:6,cost:320,t:'led'},laser:{n:'Laser',s:6,pres:10,cost:900,t:'laser'}};
+const EQUIP={
+ crumple:{n:'Crumple zones',cat:'s',s:14,cost:60,w:15,t:'crumple'},
+ abs:{n:'ABS',cat:'s',s:12,cost:140,w:8,t:'abs'},
+ airbag:{n:'Airbags',cat:'s',s:18,cost:190,w:12,t:'airbag'},
+ esc:{n:'Stability control',cat:'s',s:10,cost:120,w:3,t:'esc'},
+ adas:{n:'Driver assist L2',cat:'s',s:14,c:4,cost:520,w:6,t:'adas'},
+ selfdrive:{n:'Self-driving L3',cat:'s',s:10,c:10,p:12,cost:2500,w:15,t:'selfdrive'},
+ pwr:{n:'Power steering',cat:'c',c:5,cost:60,w:10},
+ sunroof:{n:'Sunroof',cat:'c',c:2,p:3,cost:200,w:18},
+ ac:{n:'Air con',cat:'c',c:8,p:3,cost:180,w:22,t:'ac'},
+ ewin:{n:'Electric windows',cat:'c',c:3,cost:70,w:6,t:'ewin'},
+ cruise:{n:'Cruise control',cat:'c',c:3,cost:50,w:1,t:'cruise'},
+ heat:{n:'Heated seats',cat:'c',c:4,p:2,cost:90,w:4,t:'heat'},
+ vent:{n:'Ventilated seats',cat:'c',c:4,p:4,cost:220,w:6,t:'vent'},
+ nav:{n:'Navigation',cat:'c',c:3,p:5,cost:400,w:3,t:'nav'},
+ park:{n:'Parking sensors',cat:'c',s:2,c:2,cost:90,w:1,t:'park'},
+ rearcam:{n:'Rear camera',cat:'c',s:3,c:2,cost:150,w:1,t:'rearcam'},
+ cam360:{n:'360° cameras',cat:'c',s:3,c:3,p:3,cost:420,w:2,t:'cam360'},
+ keyless:{n:'Keyless entry',cat:'c',c:2,p:3,cost:110,w:1,t:'keyless'},
+ acc:{n:'Adaptive cruise',cat:'c',s:3,c:4,cost:400,w:2,t:'acc'},
+ hud:{n:'Head-up display',cat:'c',s:1,c:2,p:4,cost:350,w:2,t:'hud'},
+ carplay:{n:'Android Auto & CarPlay',cat:'c',c:4,p:3,cost:120,w:1,t:'carplay'},
+};
+const PAINTS=[['Signal yellow','#f2b705'],['Racing green','#1e5a3c'],['Rosso','#c0392b'],['Ocean','#2a6f97'],['Arctic','#e8ebe5'],['Graphite','#3a3f44'],['Bronze','#a5673f'],['Lime','#86b33a'],['Midnight','#1c2a4a'],['Orange','#e8681e']];
+
+/* ============ MARKET ============ */
 const SEGS={
  eco:{n:'Economy',base:1800,el:2.2,w:{economy:.35,reliability:.25,practicality:.12,safety:.1,comfort:.08,performance:.05,prestige:.05}},
  fam:{n:'Family',base:2600,el:1.6,w:{practicality:.25,safety:.2,comfort:.2,reliability:.15,economy:.15,performance:.05}},
@@ -278,6 +416,7 @@ const SEGS={
  lux:{n:'Luxury',base:7000,el:.7,w:{comfort:.35,prestige:.3,performance:.15,safety:.12,reliability:.08}},
  util:{n:'Utility',base:3000,el:1.3,w:{practicality:.38,reliability:.3,performance:.14,comfort:.08,safety:.1}},
  green:{n:'Green',base:3200,el:1.4,w:{green:.55,economy:.15,reliability:.1,safety:.1,comfort:.1}},
+ com:{n:'Commercial',base:4000,el:1.2,w:{practicality:.4,reliability:.3,economy:.2,comfort:.05,safety:.05}},
 };
 const SEGK=Object.keys(SEGS);
 const SCORE_N={performance:'Performance',comfort:'Comfort',economy:'Economy',green:'Emissions',safety:'Safety',reliability:'Reliability',practicality:'Practicality',prestige:'Prestige'};
@@ -292,23 +431,22 @@ const CAMPAIGNS=[
  {id:'local',n:'Local radio & flyers',c:15e3,a:.01,b:1.15,d:30,hq:1},
  {id:'mag',n:'Magazine spread',c:80e3,a:.03,b:1.25,d:45,hq:1},
  {id:'tv',n:'TV commercial',c:400e3,a:.07,b:1.4,d:60,hq:2},
- {id:'global',n:'Global campaign',c:2.5e6,a:.15,b:1.6,d:90,hq:3},
-];
+ {id:'global',n:'Global campaign',c:2.5e6,a:.15,b:1.6,d:90,hq:3}];
 const RACES=[
  {id:'hill',n:'Hill Climb Cup',y:1970,fee:5e3,prize:60e3,tier:.85,d:'Short and twisty. Handling counts.'},
  {id:'rally',n:'Forest Rally',y:1972,fee:20e3,prize:220e3,tier:.95,awd:1,d:'Gravel stages. All-wheel drive gets a big edge.'},
  {id:'touring',n:'Touring Car Round',y:1975,fee:50e3,prize:600e3,tier:1.05,d:'Wheel-to-wheel saloon racing.'},
  {id:'endur',n:'24 Hours Endurance',y:1978,fee:150e3,prize:2e6,tier:1.12,rel:1,d:'A full day flat out. Unreliable cars retire.'},
- {id:'gp',n:'Hypercar Grand Prix',y:1990,fee:600e3,prize:7e6,tier:1.35,d:'The fastest cars on the planet.'},
-];
-const RIVALS=['Halden','Sakura-Ito','Castellan','Northway','Volkov','Brightwater','Moreau'];
+ {id:'gp',n:'Hypercar Grand Prix',y:1990,fee:600e3,prize:7e6,tier:1.35,d:'The fastest cars on the planet.'}];
 const COMPS0=[
- {n:'Halden Motorwerke',c:'#3a6ea5',q:{eco:.5,fam:.65,sport:.55,lux:.75,util:.45,green:.3}},
- {n:'Sakura-Ito Motors',c:'#c2412d',q:{eco:.7,fam:.65,sport:.5,lux:.4,util:.55,green:.35}},
- {n:'Castellan Automobili',c:'#8e3b8a',q:{eco:.45,fam:.4,sport:.8,lux:.6,util:.2,green:.2}},
- {n:'Northway Motor Co.',c:'#2f8a7d',q:{eco:.5,fam:.6,sport:.5,lux:.5,util:.75,green:.25}},
- {n:'Volkov Avtozavod',c:'#8a7a55',q:{eco:.6,fam:.5,sport:.3,lux:.25,util:.6,green:.2}},
-];
+ {n:'Rheinwerk AG',tag:'German premium',c:'#3a6ea5',from:1970,q:{eco:.45,fam:.6,sport:.62,lux:.8,util:.45,green:.3,com:.45}},
+ {n:'Hoshino Motor',tag:'Japanese mass-market',c:'#c2412d',from:1970,q:{eco:.72,fam:.7,sport:.5,lux:.4,util:.6,green:.35,com:.5}},
+ {n:'Castellan Automobili',tag:'Italian sports cars',c:'#8e3b8a',from:1970,q:{eco:.4,fam:.35,sport:.82,lux:.62,util:.15,green:.2,com:.1}},
+ {n:'Liberty Motor Co.',tag:'American muscle & trucks',c:'#2f8a7d',from:1970,q:{eco:.42,fam:.6,sport:.62,lux:.5,util:.78,green:.2,com:.68}},
+ {n:'Moreau Automobiles',tag:'French comfort',c:'#b0763a',from:1970,q:{eco:.66,fam:.64,sport:.35,lux:.46,util:.35,green:.3,com:.58}},
+ {n:'Nordvik',tag:'Swedish safety',c:'#5a6f8a',from:1970,q:{eco:.45,fam:.68,sport:.3,lux:.5,util:.5,green:.3,com:.62}},
+ {n:'Hanbit Motors',tag:'Korean value',c:'#6b8e23',from:1986,q:{eco:.55,fam:.5,sport:.3,lux:.25,util:.45,green:.4,com:.35}}];
+const RIVALS=['Rheinwerk','Hoshino','Castellan','Liberty','Moreau','Nordvik','Hanbit','Brightwater'];
 const EVENTS=[
  {id:'oil73',y:1973,m:10,t:'Oil crisis: fuel prices quadruple. Buyers rush to economical cars.',mod:{seg:{eco:1.6,sport:.6,lux:.8},days:540}},
  {id:'oil79',y:1979,m:6,t:'Second oil shock. Thirsty cars are hard to sell.',mod:{seg:{eco:1.4,sport:.7,lux:.85},days:365}},
@@ -316,133 +454,133 @@ const EVENTS=[
  {id:'emis90',y:1990,m:1,t:'Emission standards take effect. Cars over the limit sell worse and are fined per unit.'},
  {id:'suv95',y:1995,m:4,t:'The SUV craze begins. Utility vehicles are suddenly fashionable.',mod:{seg:{util:1.3},days:900}},
  {id:'green99',y:1999,m:3,t:'Eco-conscious buyers emerge as a new market segment.'},
+ {id:'diesel02',y:2002,m:1,t:'Diesel boom in Europe: frugal turbo-diesels top the sales charts.',mod:{seg:{fam:1.1,eco:1.1},days:900}},
  {id:'crash08',y:2008,m:9,t:'Global financial crisis. Credit dries up and buyers wait.',mod:{all:.7,days:450}},
  {id:'diesel15',y:2015,m:9,t:'Emissions-cheating scandal rocks the industry. Clean cars are in demand.',mod:{seg:{green:1.4},days:730}},
  {id:'pand20',y:2020,m:3,t:'Pandemic lockdowns close showrooms worldwide.',mod:{all:.55,days:110}},
  {id:'chip21',y:2021,m:5,t:'Chip shortage: component costs jump 15%.',mod:{cost:1.15,days:365}},
- {id:'fuel22',y:2022,m:3,t:'Fuel prices spike. Efficient and electric cars sell fast.',mod:{seg:{eco:1.25,green:1.35},days:365}},
-];
+ {id:'fuel22',y:2022,m:3,t:'Fuel prices spike. Efficient and electric cars sell fast.',mod:{seg:{eco:1.25,green:1.35},days:365}}];
 
 /* ============ STATE ============ */
-let S=null, tab='hq', sheet=null, draft=null, timer=null, lastSave=0;
+let S=null, tab='hq', sheet=null, draft=null, timer=null, lastSave=0, monthly=false, setupYear=1970, setupDiff='easy';
 const has=t=>!t||S.tech.includes(t);
 const yearF=()=>1970+S.day/365.25;
 const dateOf=d=>new Date(DAY0+d*864e5);
 const dayOf=(y,m)=>Math.round((Date.UTC(y,m-1,1)-DAY0)/864e5);
 const dateStr=d=>{const t=dateOf(d);return MON[t.getUTCMonth()]+' '+t.getUTCFullYear()};
+const curYear=()=>dateOf(S.day).getUTCFullYear();
 const I=()=>infl(yearF());
 function fm(n){const s=n<0?'−':'';n=Math.abs(n);if(n>=1e9)return s+'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return s+'$'+(n/1e6).toFixed(2)+'M';if(n>=1e4)return s+'$'+Math.round(n/1e3)+'k';return s+'$'+Math.round(n).toLocaleString('en-US')}
 const fn=n=>Math.round(n).toLocaleString('en-US');
 const pct=n=>(n*100).toFixed(n<.1?1:0)+'%';
 const engById=id=>S.engines.find(e=>e.id===id);
 const carById=id=>S.cars.find(c=>c.id===id);
+const fullName=c=>c.mname+(c.trim?' '+c.trim:'');
 const staffN=()=>S.staff.eng+S.staff.des+S.staff.mkt;
+const hireCost=r=>2000*I()*costMul()*Math.pow(1.2,S.staff[r]);
 const qa=()=>(has('qa1')?3:0)+(has('qa2')?4:0)+(has('qa3')?4:0);
-
-function newGame(name,sy){
-  name=(name||'').trim()||'Kestrel Motors';sy=clamp(Math.round(sy||1970),1970,2025);
-  const d0=dayOf(sy,1),inf=infl(sy),el=sy-1970;
-  const s={v:1,name,startY:sy,day:d0,money:1.5e6*inf,rp:15,rep:15,aware:.05,hq:1,staff:{eng:2,des:1,mkt:0},
-    tech:TECH.filter(t=>t.y<=sy-3).map(t=>t.id),engines:[],cars:[],
-    comp:COMPS0.map(c=>({n:c.n,c:c.c,q:Object.fromEntries(Object.entries(c.q).map(([k,v])=>[k,clamp(v+el*.0025+(k==='green'?Math.max(0,sy-2000)*.008:0),.2,.96)]))})),
-    news:[],mods:[],mkt:[],yr:{me:0,comp:[0,0,0,0,0]},lastYr:null,years:[],hist:[],pl:[],
+const newAna=()=>({body:{},dt:{},gb:{},eng:{},n:0});
+function newComps(sy,k){return COMPS0.map(c=>({n:c.n,tag:c.tag,c:c.c,from:c.from,q:Object.fromEntries(Object.entries(c.q).map(([s,v])=>[s,clamp((sy<c.from?v*.6:v)+Math.max(0,sy-Math.max(1970,c.from))*.0025+(s==='green'?Math.max(0,sy-2000)*.008:0)+(k-1)*.02,.2,.96)]))}))}
+function newGame(name,sy,diff){
+  name=(name||'').trim()||'Kestrel Motors';sy=clamp(Math.round(sy||1970),1970,2025);diff=DIFF[diff]?diff:'easy';
+  const d0=dayOf(sy,1),inf=infl(sy);
+  const s={v:2,name,diff,startY:sy,day:d0,money:DIFF[diff].cash*inf,rp:15,rep:15,aware:.05,hq:1,staff:{eng:2,des:1,mkt:0},
+    tech:TECH.filter(t=>t.y<=sy-3).map(t=>t.id),engines:[],cars:[],comp:newComps(sy,DIFF[diff].k),
+    news:[],mods:[],mkt:[],yr:{me:0,comp:COMPS0.map(()=>0)},lastYr:null,years:[],hist:[],pl:[],ana:newAna(),anaLast:null,
     evDone:EVENTS.filter(e=>dayOf(e.y,e.m)<=d0).map(e=>e.id),races:{},speed:1,won:false,over:false,nid:1};
   s.news.push({d:d0,t:`${name} opens its doors in a rented garage. Design your first engine, then build a car around it.`});
   return s;
 }
-const ERAS=[[1970,'Carburettors and pushrods. A wide-open market.'],[1975,'Oil-crisis years. Small, thrifty cars rule.'],[1980,'Fuel injection and turbos arrive.'],[1985,'Robots, ABS and the first supercars.'],[1990,'Emission limits begin. The SUV boom is coming.'],[1995,'Airbags and twin-turbos are standard kit.'],[2000,'Green buyers emerge. Rivals are strong.'],[2005,'Carbon fibre and dual-clutch gearboxes.'],[2010,'Electric cars become possible. A mature, tough market.'],[2015,'Clean cars surge after the emissions scandal.'],[2020,'Pandemic, chip shortage and the EV race.'],[2025,'Hard mode: established rivals everywhere.']];
-const eraText=y=>{let t=ERAS[0][1];for(const[a,b]of ERAS)if(y>=a)t=b;return t};
-let setupYear=1970;
-function showSetup(cancel){
-  setSpeed(0);closeModal();
-  let el=$('#setup');if(!el){el=document.createElement('div');el.className='sheet';el.id='setup';document.body.append(el)}
-  const yrs=[];for(let y=1970;y<=2025;y++)yrs.push(y);
-  el.innerHTML=`<div class="sheet-in" style="max-width:560px">
-   <div class="sect-h"><div><small>Motorworks Tycoon</small><h2>Found your company</h2></div>${cancel?'<button class="btn ghost" data-a="cancelSetup">Cancel</button>':''}</div>
-   <div class="card">
-    <div class="field"><label class="lbl" for="setupName">Company name</label><input type="text" id="setupName" maxlength="24" placeholder="Kestrel Motors" autocomplete="off"></div>
-    <div class="field"><label class="lbl" for="setupYear">Start year</label><select id="setupYear" data-i="setupYear">${yrs.map(y=>`<option ${y===setupYear?'selected':''}>${y}</option>`).join('')}</select></div>
-    <div class="chips">${[1970,1980,1990,2000,2010,2020].map(y=>`<button class="chip" data-a="sy:${y}" aria-pressed="${y===setupYear}">${y}s</button>`).join('')}</div>
-    <p id="eraNote" style="margin:0">${setupNote()}</p>
-    <button class="btn primary" data-a="startGame">Open the garage</button>
-   </div>
-   <div class="card"><h3>Continue from another device</h3><p class="muted" style="margin:0">On your other device, open the menu and tap Copy save code. Paste it here.</p>
-    <textarea id="importCode" rows="3" style="width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:9px;font:inherit;font-size:.8rem" placeholder="Paste save code"></textarea>
-    <button class="btn" data-a="importSave">Load save</button><span id="importMsg" class="neg"></span></div>
-  </div>`;
+function migrate(s){
+  if(!s)return null;
+  if(s.v===2)return s;
+  if(s.v!==1)return null;
+  s.v=2;s.diff='easy';s.startY=s.startY||1970;
+  s.tech=s.tech.map(t=>t==='efi'?'mpi':t);
+  for(const e of s.engines){e.inj=e.fuel==='efi'?'mpi':'carb';e.fuel='petrol';e.turbos=e.asp==='twin'?2:e.asp==='turbo'?1:0;e.boost=e.asp==='twin'?1:e.asp==='turbo'?.7:.5;e.sc='none';if(e.layout==='rot')e.layout='r2';delete e.asp}
+  for(const c of s.cars){c.model=c.model||c.id;c.mname=c.name;c.trim='';c.susp='std';c.lsd=false;c.hl='halogen';c.equip=(c.safety||[]).slice();delete c.safety}
+  s.comp=newComps(Math.floor(1970+s.day/365.25),1);s.yr={me:s.yr.me,comp:s.comp.map(()=>0)};s.lastYr=null;s.ana=newAna();s.anaLast=null;
+  return s;
 }
-function setupNote(){const inf=infl(setupYear);const pre=TECH.filter(t=>t.y<=setupYear-3).length;
-  return `<b>${eraText(setupYear)}</b> <span class="muted">You start with ${fm(1.5e6*inf)}, a rented garage and three staff. ${pre?pre+' older technologies come already researched.':'Nothing is researched yet.'} No engines or cars: you design everything.</span>`}
-function beginGame(st){
-  S=st;const el=$('#setup');if(el)el.remove();tab='hq';save();lastSave=S.day;
-  renderTop();renderNav();renderView();setSpeed(1);
-}
-function exportCode(){return btoa(unescape(encodeURIComponent(JSON.stringify(S))))}
-function importCode(code){try{const st=JSON.parse(decodeURIComponent(escape(atob(code.trim().replace(/\s+/g,'')))));return st&&st.v===1&&Array.isArray(st.cars)?st:null}catch(e){return null}}
-function save(){try{localStorage.setItem(SAVEKEY,JSON.stringify(S))}catch(e){}}
-function load(){try{const r=localStorage.getItem(SAVEKEY);if(!r)return null;const s=JSON.parse(r);return s&&s.v===1?s:null}catch(e){return null}}
+function save(){try{if(S)localStorage.setItem(SAVEKEY,JSON.stringify(S))}catch(e){}}
+function load(){try{const r=localStorage.getItem(SAVEKEY);return r?migrate(JSON.parse(r)):null}catch(e){return null}}
 
 /* ============ MODEL ============ */
 function engStats(e){
-  const L0=LAYOUTS[e.layout], dy=e.year;
+  const L0=LAYOUTS[e.layout],dy=e.year;
   if(L0.ev){const hp=e.evHp,bat=Math.max(.45,1-.025*(dy-2008));
-    return {ev:true,L:0,hp,tq:Math.round(hp*2.1),w:Math.round(110+hp*1.1*bat),rel:clamp(90+qa()/2,20,99),cost:Math.round(1200+hp*9*bat),cyl:0,rpm:14000};}
-  const cyl=L0.cyl, rot=!!L0.rotary;
-  const L=rot?1.3:cyl*Math.PI/4*e.bore*e.bore*e.stroke/1e6;
+    const w0=Math.round(110+hp*1.1*bat);
+    return {ev:true,L:0,hp,tq:Math.round(hp*2.1),w:e.wo?clamp(e.wo,w0*.5,w0*2):w0,wAuto:w0,rel:clamp(Math.round(90+qa()/2),20,99),cost:Math.round(1200+hp*9*bat),cyl:0,rpm:14000,eco:1,co2:0}}
+  const rot=L0.rot||0,cyl=L0.cyl,F=FUELS[e.fuel],J=INJ[e.inj],SC=SCS[e.sc||'none'];
+  const L=rot?.654*rot:cyl*Math.PI/4*e.bore*e.bore*e.stroke/1e6;
   const r=rot?1:e.bore/e.stroke;
-  const A=ASPS[e.asp], tech=1+.005*(dy-1970);
-  const spec=(rot?88:VALVES[e.valve].s)*A.p*(e.fuel==='efi'?1.12:1)*tech*(1+.3*(r-1));
-  const hp=Math.round(L*spec);
-  const tq=Math.round(L*(rot?78:96)*A.q*(e.fuel==='efi'?1.05:1)*(1-.25*(r-1))*tech);
-  let w=rot?95:55+cyl*24*Math.sqrt((L/cyl)/.5)*(L0.wM||1);
-  if(e.mat==='alu')w*=.74; w+=e.asp==='turbo'?16:e.asp==='twin'?28:0;
-  const rel=84+(L0.rel||0)-(e.asp==='turbo'?8:e.asp==='twin'?14:0)-(rot?20:0)-Math.max(0,spec-75)*.25+qa();
-  const cost=Math.round(220+L*110+cyl*42+(L0.cost||0)+(rot?0:VALVES[e.valve].c)+(e.fuel==='efi'?120:0)+A.c+(e.mat==='alu'?180:0));
-  const rpm=Math.round((5200+(e.valve==='dohc'?1100:e.valve==='sohc'?500:0)+1800*(r-1)+(rot?2500:0))/100)*100;
-  return {L,hp,tq,w:Math.round(w),rel:clamp(Math.round(rel),20,99),cost,cyl,rot,rpm,spec};
+  const tech=1+.006*(dy-1970);
+  const tb=e.turbos||0,bar=tb?e.boost:0;
+  const injP=(e.inj==='di'&&e.fuel==='diesel')?1.25:J.p;
+  const strokeF=rot?1:clamp(Math.pow(86/e.stroke,.8),.45,1.15);
+  const spec=(rot?90:VALVES[e.valve].s)*F.p*injP*tech*(1+.3*(r-1))*(has('vvt')?1.08:1)*strokeF;
+  const boostM=tb?1+bar*.35*(1+.03*(tb-1)):1;
+  const hp=Math.round(L*spec*boostM*SC.p);
+  const tq=Math.round(L*90*F.q*(1+.003*(dy-1970))*(1-.25*(r-1))*(e.inj==='di'?1.08:1)*(tb?1+bar*.5:1)*SC.p*(rot?.8:1));
+  let w=rot?70+30*rot:(30+12*cyl+30*L)*(L0.wM||1);
+  w*=F.w*EMATS[e.mat].w;w+=tb*12+(tb?8:0)+SC.w;
+  const w0=Math.round(w);
+  const rel=85+(L0.rel||0)+F.rel-(tb?4+bar*4+(tb-1)*1.2:0)-SC.rel-Math.max(0,spec*boostM*SC.p-110)*.08+qa();
+  const cost=Math.round(220+L*110+cyl*42+(L0.cost||0)+(rot?0:VALVES[e.valve].c)+J.cost+F.cost+tb*(180+bar*40)+SC.cost+EMATS[e.mat].cost);
+  const rpm=Math.round((5200+(e.valve==='dohc'?1100:e.valve==='sohc'?500:0)+1800*(r-1)+(rot?2500:0)+F.rpm)/100)*100;
+  const eco=F.eco*J.eco*(tb?1+.04*bar:1)*SC.eco;
+  return {L,hp,tq,w:e.wo?clamp(e.wo,w0*.5,w0*2):w0,wAuto:w0,rel:clamp(Math.round(rel),3,99),cost,cyl,rot,rpm,spec,boostM,eco,co2:F.co2};
 }
+function engDesc(e){const s=engStats(e),L=LAYOUTS[e.layout];if(s.ev)return `${s.hp} hp electric`;
+  const ind=e.turbos?(e.turbos===1?'turbo':e.turbos===2?'twin-turbo':e.turbos+' turbos'):'';const sc=e.sc&&e.sc!=='none'?'supercharged':'';
+  return `${s.L.toFixed(1)} L ${L.n} ${FUELS[e.fuel].n.toLowerCase()}${ind?' '+ind:''}${sc?' '+sc:''} · ${s.hp} hp`}
 function emisLimit(y){if(y<1990)return 0;const pts=[[1990,230],[2000,190],[2010,150],[2020,115],[2035,85]];for(let i=1;i<pts.length;i++){if(y<=pts[i][0]){const[a,b]=pts[i-1],[c,d]=pts[i];return b+(d-b)*(y-a)/(c-a)}}return 85}
 function carStats(c,y){
   y=y||yearF();
-  const B=BODIES[c.body],E=engById(c.eng),es=engStats(E),G=GEARS[c.gb],D=DRIVES[c.dt],IN=INTS[c.int],M=MATS[c.mat];
-  const sf=c.safety.map(k=>SAFETY[k]);
-  const w=Math.round(B.w*M.w+es.w+G.w+D.w+IN.w+sf.reduce((a,s)=>a+s.w,0));
+  const B=BODIES[c.body],E=engById(c.eng),es=engStats(E),G=GEARS[c.gb],D=DRIVES[c.dt],IN=INTS[c.int],M=MATS[c.mat],SU=SUSP[c.susp||'std'],H=HEADL[c.hl||'halogen'];
+  const eq=(c.equip||[]).map(k=>EQUIP[k]).filter(Boolean);
+  const sumq=f=>eq.reduce((a,q)=>a+(q[f]||0),0);
+  const w0=Math.round(B.w*M.w*(1+.006*clamp(c.year-1970,0,60))+es.w+G.w+D.w+IN.w+SU.w+(c.lsd?8:0)+sumq('w'));
+  const w=c.cw?clamp(c.cw,w0*.5,w0*2):w0;
   const pw=es.hp/(w/1000);
-  const t=Math.max(2,(2.3+850/pw)*G.acc*D.acc*(es.ev?.85:1));
-  const top=Math.round(37.7*Math.cbrt(es.hp)*B.aero*(es.ev?.92:1));
-  const l100=es.ev?0:(2.2+es.L*1.7+w/500)*(E.fuel==='efi'?.88:1)*G.eco*D.eco*Math.max(.7,1-.006*(c.year-1970));
-  const emis=es.ev?0:Math.round(l100*23.7*(has('cat')?.78:1)*(es.rot?1.3:1));
-  const k=clamp((y-1970)/55,0,1), te=13-6.5*k, ee=11-5*k, db=c.db||0;
+  const t=Math.max(1.9,(2.3+850/pw)*G.acc*D.acc*(es.ev?.85:1)*(c.lsd?.98:1));
+  const top=Math.round(Math.min(B.vmax||999,37.7*Math.cbrt(es.hp)*B.aero*(es.ev?.92:1)));
+  const era=Math.max(.68,1-.0075*(c.year-1970));
+  const l100=es.ev?0:(1.8+2.6*Math.pow(es.L,.85)+w/280)*era*es.eco*G.eco*D.eco*(1+clamp((es.hp-150)/1500,0,1.5));
+  const kwh=es.ev?11+w/160:0;
+  const emis=es.ev?0:Math.round(l100*es.co2*(has('cat')?.85:1)*(es.rot?1.25:1));
+  const k=clamp((y-1970)/55,0,1),te=13-6.5*k,ee=(11-5*k)*Math.pow(w/1150,.55),db=c.db||0,yy=y-1970;
   const sc={};
   sc.performance=clamp(50*Math.pow(te/t,1.4)+(top-(150+100*k))*.08,0,100);
   sc.economy=es.ev?92:clamp(50*(ee/l100),0,100);
   sc.green=es.ev?98:clamp(100-emis/2.6,0,100);
-  sc.comfort=clamp(B.comfort+IN.comfort+G.comfort+D.comfort+db-Math.max(0,B.sport-60)*.2,0,100);
-  sc.safety=clamp(30+sf.reduce((a,s)=>a+s.s,0)+B.safety+M.safety+db*.5-(y-1970)*.75,0,100);
-  sc.reliability=clamp(es.rel+G.rel+D.rel,0,100);
-  sc.practicality=clamp(B.prac+D.prac,0,100);
-  sc.prestige=clamp(IN.pres+sc.performance*.25+S.rep*.25+M.pres+(es.cyl>=8?8:0)+(es.cyl>=12?8:0)+db*.5,0,100);
+  sc.comfort=clamp(B.comfort+IN.comfort+G.comfort+D.comfort+SU.comfort+sumq('c')+db-Math.max(0,B.sport-60)*.2-yy*.45+8,0,100);
+  sc.safety=clamp(30+sumq('s')+H.s+B.safety+M.safety+db*.5-yy*.75,0,100);
+  sc.reliability=clamp(es.rel+G.rel+D.rel-eq.length*.3,0,100);
+  sc.practicality=clamp(B.prac+D.prac+SU.prac,0,100);
+  sc.prestige=clamp(IN.pres+sc.performance*.25+S.rep*.25+M.pres+SU.pres+H.pres+sumq('p')+(es.cyl>=8?8:0)+(es.cyl>=12?8:0)+db*.5-yy*.2,0,100);
   const fit={};
   for(const s of SEGK){let v=0;for(const[k2,wt]of Object.entries(SEGS[s].w))v+=wt*sc[k2];fit[s]=v/100}
-  const cost=(es.cost+B.cost*M.cost+G.cost+D.cost+IN.cost+sf.reduce((a,s)=>a+s.cost,0)+300)*(has('robots')?.9:1)*(has('lean')?.9:1);
-  const handling=clamp(.5+(B.sport+D.sport)/200-(w-1000)/4000+(c.safety.includes('abs')?.05:0),.2,1.3);
-  return {w,hp:es.hp,tq:es.tq,t,top,l100,emis,sc,fit,cost,handling,ev:es.ev,rel:sc.reliability};
+  const cost=(es.cost+B.cost*M.cost+G.cost+D.cost+IN.cost+SU.cost+(c.lsd?120:0)+H.cost+sumq('cost')+300)*(has('robots')?.9:1)*(has('lean')?.9:1)*unitMul();
+  const handling=clamp(.5+(B.sport+D.sport+SU.sport+(c.lsd?6:0))/200-(w-1000)/4000+(c.equip&&c.equip.includes('abs')?.05:0),.1,1.4);
+  return {w,wAuto:w0,hp:es.hp,tq:es.tq,t,top,l100,kwh,emis,sc,fit,cost,handling,ev:es.ev,rel:sc.reliability};
 }
-function segValue(s,fr){return SEGS[s].base*(.35+1.3*fr)} /* in 1970 dollars; prices are stored inflation-indexed */
+function segValue(s,fr,body){return SEGS[s].base*(.35+1.3*fr)*(body?BODIES[body].vm:1)}
 function bestSeg(st,body){let b=null,bv=-1;for(const s of SEGK){const v=st.fit[s]*BODIES[body].seg[s];if(v>bv){bv=v;b=s}}return b}
-function suggestPrice(st,body){const s=bestSeg(st,body);return Math.max(st.cost*1.12,segValue(s,st.fit[s]))}
+function suggestPrice(st,body){const s=bestSeg(st,body);return Math.max(st.cost*1.12,segValue(s,st.fit[s],body))}
 function playerAppeal(c,st,s,y){
-  const m=BODIES[c.body].seg[s]; if(!m)return 0;
-  const fr=st.fit[s], V=segValue(s,fr);
+  const m=BODIES[c.body].seg[s];if(!m)return 0;
+  const fr=st.fit[s],V=segValue(s,fr,c.body);
   const pf=clamp(Math.exp(-SEGS[s].el*(c.price/V-1)),.02,2.2);
-  const age=y-c.year, fresh=age<4?1:Math.max(.35,1-.08*(age-4));
-  const lim=emisLimit(y), ep=(lim&&st.emis>lim)?.6:1;
+  const age=y-c.year,fresh=age<4?1:Math.max(.35,1-.08*(age-4));
+  const lim=emisLimit(y),ep=(lim&&st.emis>lim)?.6:1;
   return Math.pow(fr*m,2)*pf*fresh*(.7+c.review*.06)*ep;
 }
 function segSize(s,y){
   const g=1+.012*(y-1970);let v;
   if(s==='eco')v=3200*(1-.004*(y-1970));else if(s==='fam')v=3800;else if(s==='sport')v=700;else if(s==='lux')v=500+6*(y-1970);
-  else if(s==='util')v=900+90*clamp(y-1985,0,56);else v=y<1997?0:Math.min(5200,110*Math.pow(y-1997,1.25));
+  else if(s==='util')v=900+90*clamp(y-1985,0,56);else if(s==='com')v=1400+12*(y-1970);
+  else v=y<1997?0:Math.min(5200,110*Math.pow(y-1997,1.25));
   return v*g*modSeg(s);
 }
 function activeMods(){return S.mods.filter(m=>m.until>S.day)}
@@ -450,21 +588,18 @@ function modSeg(s){return activeMods().reduce((a,m)=>a*(m.all||1)*((m.seg&&m.seg
 const modCost=()=>activeMods().reduce((a,m)=>a*(m.cost||1),1);
 const modProd=()=>activeMods().reduce((a,m)=>a*(m.prod||1),1);
 const mktBoost=()=>S.mkt.filter(m=>m.until>S.day).reduce((a,m)=>Math.max(a,m.b),1);
-/* bank credit: a base line plus ~15 days of working capital for the production you've ordered */
 function creditLimit(){const inf=I();let wc=0;for(const c of S.cars)if(c.prod)wc+=c.prod*carStats(c).cost*inf;return 250e3*inf*S.hq+Math.min(wc,HQ[S.hq].cap*30e3*inf)*15}
 const repF=()=>.55+S.rep/100*.9;
-
-/* market solve for one day; returns {dem, compU, tot} */
 function solveMarket(y,stats){
   const dem={};S.cars.forEach(c=>dem[c.id]=0);
-  const compU=S.comp.map(()=>0);let tot=0;const boost=mktBoost()*S.aware*repF();
+  const compU=S.comp.map(()=>0);let tot=0;const boost=mktBoost()*S.aware*repF()*demandMul();
   const segInfo={};
   for(const s of SEGK){
     const size=segSize(s,y);if(size<=0){segInfo[s]={size:0,me:0,comp:compU.map(()=>0)};continue}
-    const ca=S.comp.map(cp=>cp.q[s]*cp.q[s]);
+    const ca=S.comp.map(cp=>y>=cp.from?cp.q[s]*cp.q[s]:0);
     const mine=S.cars.filter(c=>c.prod>0||c.inv>0).map(c=>({c,ap:playerAppeal(c,stats[c.id],s,y)*boost})).filter(o=>o.ap>0).sort((a,b)=>b.ap-a.ap);
     let eff=0;mine.forEach((o,i)=>eff+=o.ap*Math.pow(.6,i));
-    const sm=mine.reduce((a,o)=>a+o.ap,0), total=eff+ca.reduce((a,b)=>a+b,0);
+    const sm=mine.reduce((a,o)=>a+o.ap,0),total=eff+ca.reduce((a,b)=>a+b,0)||1;
     const my=size*eff/total;
     mine.forEach(o=>dem[o.c.id]+=my*o.ap/sm);
     const cu=ca.map(a=>size*a/total);cu.forEach((u,i)=>compU[i]+=u);
@@ -475,11 +610,11 @@ function solveMarket(y,stats){
 
 /* ============ SIM ============ */
 function simDay(){
-  const y=yearF(), inf=infl(y), stats={};
+  const y=yearF(),inf=infl(y),stats={};
   S.cars.forEach(c=>stats[c.id]=carStats(c,y));
-  const cap=Math.floor(HQ[S.hq].cap*modProd()), credit=creditLimit();
+  const cap=Math.floor(HQ[S.hq].cap*modProd()),credit=creditLimit();
   let used=0,prodCost=0,cashBlocked=false;
-  const want=S.cars.reduce((a,c)=>a+(c.prod||0),0), scale=want>cap?cap/want:1;
+  const want=S.cars.reduce((a,c)=>a+(c.prod||0),0),scale=want>cap?cap/want:1;
   for(const c of S.cars){
     c.built=0;c.block=null;
     if(!c.prod)continue;
@@ -493,21 +628,22 @@ function simDay(){
   if(cashBlocked&&!S.credWarn){S.credWarn=1;notify('Out of cash and credit. Factories are building less until money comes in. Lower production or raise prices.',true)}
   if(!cashBlocked)S.credWarn=0;
   S.used=used;
-  const mk=solveMarket(y,stats), lim=emisLimit(y);
+  const mk=solveMarket(y,stats),lim=emisLimit(y);
   let rev=0,sold=0,fines=0;
   for(const c of S.cars){
-    const d=mk.dem[c.id]||0, want=(c.frac||0)+d;
-    const n=Math.min(Math.floor(want),c.inv);
-    c.frac=Math.min(want-n,.99);c.inv-=n;c.sold+=n;sold+=n;rev+=n*c.price*inf;
+    const d=mk.dem[c.id]||0,wantN=(c.frac||0)+d;
+    const n=Math.min(Math.floor(wantN),c.inv);
+    c.frac=Math.min(wantN-n,.99);c.inv-=n;c.sold+=n;sold+=n;rev+=n*c.price*inf;
     if(lim&&stats[c.id].emis>lim)fines+=n*150*inf;
     c.rate=c.rate*.85+n*.15;c.dem=c.dem*.85+d*.15;
+    if(n){const a=S.ana,E=engById(c.eng),ek=LAYOUTS[E.layout].ev?'Electric':LAYOUTS[E.layout].n+' '+FUELS[E.fuel].n.toLowerCase();
+      a.body[BODIES[c.body].n]=(a.body[BODIES[c.body].n]||0)+n;a.dt[DRIVES[c.dt].n]=(a.dt[DRIVES[c.dt].n]||0)+n;a.gb[GEARS[c.gb].n]=(a.gb[GEARS[c.gb].n]||0)+n;a.eng[ek]=(a.eng[ek]||0)+n;a.n+=n}
   }
   S.yr.me+=sold;mk.compU.forEach((u,i)=>S.yr.comp[i]+=u);
-  const fixed=HQ[S.hq].up*inf+staffN()*55*inf, interest=S.money<0?-S.money*.0003:0;
+  const fixed=HQ[S.hq].up*inf+staffN()*55*inf,interest=S.money<0?-S.money*.0003:0;
   const profit=rev-prodCost-fixed-interest-fines;
   S.money+=profit;S.pl.push(profit);if(S.pl.length>30)S.pl.shift();
-  S.today={rev,prodCost,fixed,interest,fines,sold};
-  S.rp+=.2+S.staff.eng*.2;
+  S.rp+=(.2+S.staff.eng*.2)*rpMul();
   S.aware=clamp(S.aware+.000004*Math.sqrt(sold)+S.staff.mkt*.00004-(S.aware-.03)*.0004,0,1);
   const act=S.cars.filter(c=>c.prod>0||c.inv>0);
   const tgt=act.length?10+act.reduce((a,c)=>a+c.review,0)/act.length*7:S.rep;
@@ -516,43 +652,35 @@ function simDay(){
   S.day++;
   const t=dateOf(S.day);
   checkEvents();
-  if(t.getUTCMonth()!==pm){
-    S.hist.push(S.money);if(S.hist.length>120)S.hist.shift();
-    if(t.getUTCMonth()===0)yearEnd(t.getUTCFullYear()-1);
-    monthly=true;
-  }
+  if(t.getUTCMonth()!==pm){S.hist.push(S.money);if(S.hist.length>120)S.hist.shift();if(t.getUTCMonth()===0)yearEnd(t.getUTCFullYear()-1);monthly=true}
   if(S.money<-credit*1.6&&!S.over){S.over=true;setSpeed(0);gameOver()}
 }
-let monthly=false;
 function yearEnd(yr){
   const tot=S.yr.me+S.yr.comp.reduce((a,b)=>a+b,0);
-  const share=tot?S.yr.me/tot:0, cs=S.yr.comp.map(u=>tot?u/tot:0);
+  const share=tot?S.yr.me/tot:0,cs=S.yr.comp.map(u=>tot?u/tot:0);
   S.years.push({y:yr,share,cs,units:S.yr.me,cash:S.money});
   S.lastYr={...S.yr,tot};S.yr={me:0,comp:S.comp.map(()=>0)};
-  for(const cp of S.comp)for(const s of SEGK)cp.q[s]=clamp(cp.q[s]+rnd(-.02,.025)+(s==='green'&&yr>2000?.008:0),.2,.96);
-  if(!S.won&&share>Math.max(...cs)){S.won=true;setTimeout(()=>modal(`<span class="tag y">${yr} results</span><h2>Market leader</h2><p>${esc(S.name)} sold more cars than any rival in ${yr} with ${pct(share)} of the world market. You are an automotive tycoon. Keep going and see how long you can hold the crown.</p>`,[['Keep playing','close',1]]),50)}
+  S.anaLast=S.ana;S.ana=newAna();
+  for(const cp of S.comp){if(yr+1<cp.from)continue;const young=yr-cp.from<15?.012:0;for(const s of SEGK)cp.q[s]=clamp(cp.q[s]+rnd(-.02,.025)+young+(s==='green'&&yr>2000?.008:0),.2,.96)}
+  const born=S.comp.find(cp=>cp.from===yr+1);if(born)notify(`${born.n} (${born.tag}) enters the world market.`,true);
+  if(!S.won&&share>Math.max(...cs)){S.won=true;setTimeout(()=>modal(`<span class="tag y">${yr} results</span><h2>Market leader</h2><p>${esc(S.name)} sold more vehicles than any rival in ${yr} with ${pct(share)} of the world market. You are an automotive tycoon.</p>`,[['Keep playing','close',1]]),50)}
   const nt=TECH.filter(x=>x.y===yr+1&&!S.tech.includes(x.id));
-  if(nt.length)notify('New technology available to research: '+nt.map(x=>x.n).join(', ')+'.',true);
-  if(yr+1===2031)notify('It is 2031. Your company has a 60-year history. Play on as long as you like.',true);
+  if(nt.length)notify('New research available: '+nt.map(x=>x.n).join(', ')+'.',true);
 }
 function checkEvents(){
-  for(const ev of EVENTS){
-    if(S.evDone.includes(ev.id))continue;
-    if(S.day>=dayOf(ev.y,ev.m)){S.evDone.push(ev.id);if(ev.mod)S.mods.push({...ev.mod,until:S.day+ev.mod.days,label:ev.t});notify(ev.t,true)}
-  }
-  if(S.day>200&&Math.random()<1/170)randomEvent();
+  for(const ev of EVENTS){if(S.evDone.includes(ev.id))continue;if(S.day>=dayOf(ev.y,ev.m)){S.evDone.push(ev.id);if(ev.mod)S.mods.push({...ev.mod,until:S.day+ev.mod.days,label:ev.t});notify(ev.t,true)}}
+  if(S.day-dayOf(S.startY||1970,1)>200&&Math.random()<1/170)randomEvent();
 }
 function randomEvent(){
-  const act=S.cars.filter(c=>c.prod>0);
-  const opts=[];
+  const act=S.cars.filter(c=>c.prod>0),opts=[];
   const best=act.slice().sort((a,b)=>b.review-a.review)[0];
-  if(best&&best.review>=8)opts.push(()=>{S.rep=clamp(S.rep+4,0,100);S.aware=clamp(S.aware+.02,0,1);return `Car of the Year: the ${best.name} wins the jury vote. Reputation and awareness up.`});
+  if(best&&best.review>=8)opts.push(()=>{S.rep=clamp(S.rep+4,0,100);S.aware=clamp(S.aware+.02,0,1);return `Car of the Year: the ${fullName(best)} wins the jury vote. Reputation and awareness up.`});
   const weak=act.find(c=>carStats(c).rel<62);
-  if(weak)opts.push(()=>{const cost=Math.max(20e3,weak.sold*.12*120)*I();S.money-=cost;S.rep=clamp(S.rep-3,0,100);return `Recall: the ${weak.name} has a faulty part. Repairs cost ${fm(cost)} and dent your reputation.`});
+  if(weak)opts.push(()=>{const cost=Math.max(20e3,weak.sold*.12*120)*I();S.money-=cost;S.rep=clamp(S.rep-3,0,100);return `Recall: the ${fullName(weak)} has a faulty part. Repairs cost ${fm(cost)} and dent your reputation.`});
   if(act.length)opts.push(()=>{S.mods.push({prod:.5,until:S.day+14});return 'Workers strike at your plant. Output is halved for two weeks.'});
   opts.push(()=>{S.mods.push({cost:.9,until:S.day+30});return 'A supplier offers bulk discounts: production costs down 10% this month.'});
-  if(act.length)opts.push(()=>{S.aware=clamp(S.aware+.015,0,1);return `A road-test video of the ${pick(act).name} goes viral. Brand awareness up.`});
-  opts.push(()=>{const r=pick(S.comp);return `${r.n} unveils a new model line. Competition heats up.`});
+  if(act.length)opts.push(()=>{S.aware=clamp(S.aware+.015,0,1);return `A road-test video of the ${fullName(pick(act))} goes viral. Brand awareness up.`});
+  opts.push(()=>{const r=pick(S.comp.filter(c=>yearF()>=c.from));return `${r.n} unveils a new model line. Competition heats up.`});
   notify(pick(opts)(),true);
 }
 
@@ -561,10 +689,11 @@ const SPEEDS=[0,1,3,10];
 function setSpeed(i){if(!S){clearInterval(timer);timer=null;return}S.speed=i;clearInterval(timer);timer=null;if(i>0&&!S.over)timer=setInterval(tick,500);renderTop()}
 function tick(){
   if(!S||$('#setup'))return;
-  const n=SPEEDS[S.speed];const y0=dateOf(S.day).getUTCFullYear();
+  const n=SPEEDS[S.speed],y0=curYear();
   for(let i=0;i<n&&!S.over;i++)simDay();
   refreshLive();
-  if(monthly){monthly=false;const busy=document.activeElement&&document.activeElement.matches('input,select');if(!sheet&&!busy&&tab!=='cars'&&tab!=='eng')renderView();if(dateOf(S.day).getUTCFullYear()!==y0&&tab==='cars'&&!sheet&&!busy)renderView()}
+  if(monthly){monthly=false;const busy=document.activeElement&&document.activeElement.matches('input,select,textarea');
+    if(!sheet&&!busy&&(tab!=='cars'&&tab!=='eng'||curYear()!==y0))renderView()}
   if(S.day-lastSave>=30){lastSave=S.day;save()}
 }
 
@@ -576,19 +705,48 @@ const ICONS={
  cars:'<path d="M3 16l2.2-5.5A2 2 0 0 1 7 9h10a2 2 0 0 1 1.8 1.5L21 16v3h-3M3 16v3h3M3 16h18M9 19h6"/><circle cx="7.5" cy="19" r="1.6"/><circle cx="16.5" cy="19" r="1.6"/>',
  market:'<path d="M3 21h18M6 21V12M11 21V6M16 21v-6M20 21V9"/>',
  lab:'<path d="M9 3h6M10 3v6l-5.5 9.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3M7.5 15h9"/>',
- race:'<path d="M5 21V4M5 4h13l-2.5 4 2.5 4H5"/>',
-};
-const icon=(k)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
+ race:'<path d="M5 21V4M5 4h13l-2.5 4 2.5 4H5"/>'};
+const icon=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
 const TABS=[['hq','HQ'],['eng','Engines'],['cars','Cars'],['market','Market'],['lab','Research'],['race','Racing']];
 function carSVG(body,color,label){
-  const s=SHAPES[body],r=s.r,cy=108-r;
-  const wh=x=>`<circle cx="${x}" cy="${cy}" r="${r}" fill="var(--tyre)"/><circle cx="${x}" cy="${cy}" r="${r*.56}" fill="var(--rim)"/><circle cx="${x}" cy="${cy}" r="${r*.18}" fill="var(--tyre)"/>`;
-  return `<svg class="carpic" viewBox="0 0 320 116" role="img" aria-label="${esc(label||BODIES[body].n)}"><ellipse cx="160" cy="109" rx="142" ry="5" fill="var(--shadow)"/><path d="${s.p}" fill="${color}" stroke="var(--ink)" stroke-opacity=".4" stroke-width="1.5" stroke-linejoin="round"/><path d="${s.g}" fill="var(--glass)"/><path d="M${s.tl[0]} ${s.tl[1]}h6v6h-6z" fill="#d23a28"/><path d="M${s.hl[0]} ${s.hl[1]}h8v5h-8z" fill="#fff1b8" stroke="var(--ink)" stroke-opacity=".3"/>${wh(80)}${wh(240)}</svg>`;
+  const s=SHAPES[body],wh=s.wh||[[82,16],[238,16]];
+  const wheel=([x,r])=>{const cy=108-r;let sp='';for(let i=0;i<5;i++){const a=i*Math.PI*2/5-Math.PI/2;sp+=`M${x} ${cy} L${(x+Math.cos(a)*r*.55).toFixed(1)} ${(cy+Math.sin(a)*r*.55).toFixed(1)} `}
+    return `<circle cx="${x}" cy="${cy}" r="${r+3.5}" fill="var(--arch)"/><circle cx="${x}" cy="${cy}" r="${r}" fill="var(--tyre)"/><circle cx="${x}" cy="${cy}" r="${(r*.62).toFixed(1)}" fill="var(--rim)"/><path d="${sp}" stroke="var(--tyre)" stroke-width="2.2" stroke-linecap="round"/><circle cx="${x}" cy="${cy}" r="${(r*.16).toFixed(1)}" fill="var(--tyre)"/>`};
+  let o=`<svg class="carpic" viewBox="0 0 320 116" role="img" aria-label="${esc(label||BODIES[body].n)}"><ellipse cx="160" cy="109" rx="152" ry="5" fill="var(--shadow)"/>`;
+  if(s.box)o+=`<path d="${s.box}" fill="${color}" stroke="var(--ink)" stroke-opacity=".45" stroke-width="1.5"/><path d="${s.box}" fill="#fff" opacity=".4"/>`;
+  o+=`<path d="${s.p}" fill="${color}" stroke="var(--ink)" stroke-opacity=".45" stroke-width="1.5" stroke-linejoin="round"/>`;
+  o+=`<rect x="${s.x[0]}" y="84" width="${s.x[1]-s.x[0]}" height="9" fill="#000" opacity=".13"/>`;
+  o+=`<path d="${s.g}" fill="var(--glass)"/><path d="${s.g}" fill="#fff" opacity=".08"/>`;
+  for(const[x,y1,y2]of s.pil||[])o+=`<path d="M${x} ${y1} L${x} ${y2}" stroke="${color}" stroke-width="5"/>`;
+  if(s.x2)o+=`<path d="${s.x2}" fill="var(--tyre)" opacity=".85"/>`;
+  o+=`<path d="${s.d}" fill="none" stroke="var(--ink)" stroke-opacity=".35" stroke-width="1.2"/>`;
+  if(s.m)o+=`<path d="M${s.m[0]} ${s.m[1]} l7 -3 l2 5 l-8 2 z" fill="${color}" stroke="var(--ink)" stroke-opacity=".5"/>`;
+  o+=`<rect x="${s.tl[0]}" y="${s.tl[1]}" width="5" height="${s.tlh||6}" rx="1" fill="#d23a28"/><rect x="${s.hl[0]}" y="${s.hl[1]}" width="9" height="5" rx="1.5" fill="#fff1b8" stroke="var(--ink)" stroke-opacity=".3"/>`;
+  o+=wh.map(wheel).join('')+'</svg>';
+  return o;
+}
+function engineDiagram(e){
+  const L=LAYOUTS[e.layout];
+  if(L.ev)return `<svg viewBox="0 0 300 110" class="diag" role="img" aria-label="Electric motor"><rect x="70" y="25" width="140" height="60" rx="10" fill="var(--sunk)" stroke="var(--muted)" stroke-width="2"/><rect x="210" y="45" width="24" height="20" rx="3" fill="var(--rim)"/><path d="M146 32l-20 26h18l-10 22 30-32h-18l12-16z" fill="var(--accent)"/></svg><small>Electric motor · no firing order</small>`;
+  const n=L.rot||L.cyl,fo=L.fo,pos={};
+  let W=300,H=120,extra='',lab='';
+  if(L.k==='i'){const st=Math.min(46,240/Math.max(1,n-1));const x0=150-st*(n-1)/2;for(let i=1;i<=n;i++)pos[i]=[x0+(i-1)*st,52];extra=`<line x1="${x0-24}" x2="${x0+st*(n-1)+24}" y1="88" y2="88" stroke="var(--muted)" stroke-width="3"/>`;lab='Single bank, crankshaft below'}
+  else if(L.k==='v'||L.k==='b'){const h=n/2,st=Math.min(46,220/Math.max(1,h-.5));const x0=150-st*(h-.5)/2;for(let i=1;i<=h;i++){pos[i]=[x0+(i-1)*st,28];pos[i+h]=[x0+(i-1)*st+st/2,92]}
+    extra=`<line x1="${x0-20}" x2="${x0+st*h+10}" y1="60" y2="60" stroke="var(--muted)" stroke-width="3"/>`;lab=L.k==='v'?'Bank A on top, bank B below, sharing one crank':'Opposed banks on both sides of the crank'}
+  else if(L.k==='w'){const per=n/4,st=Math.min(44,220/Math.max(1,per));const x0=150-st*(per-.5)/2;const ys=[14,40,80,106];H=124;
+    for(let i=1;i<=n;i++){const row=Math.floor((i-1)/per),ix=(i-1)%per;pos[i]=[x0+ix*st+(row%2)*st/2,ys[row]+4]}
+    extra=`<line x1="${x0-20}" x2="${x0+st*per+10}" y1="64" y2="64" stroke="var(--muted)" stroke-width="3"/>`;lab='Four staggered rows: two narrow V banks on one crank'}
+  else if(L.k==='r'){const st=Math.min(70,240/Math.max(1,n-1));const x0=150-st*(n-1)/2;for(let i=1;i<=n;i++)pos[i]=[x0+(i-1)*st,56];extra=`<line x1="${x0-34}" x2="${x0+st*(n-1)+34}" y1="56" y2="56" stroke="var(--muted)" stroke-width="3"/>`;lab='Rotors on one eccentric shaft'}
+  const r=L.k==='r'?22:Math.max(9,Math.min(17,130/n));
+  const T=1.8;
+  const cyls=fo.map((cy,ix)=>{const[x,y]=pos[cy];const sh=L.k==='r'?`<path d="M${x} ${y-r} L${(x+r*.87).toFixed(1)} ${(y+r*.5).toFixed(1)} L${(x-r*.87).toFixed(1)} ${(y+r*.5).toFixed(1)} Z" stroke-linejoin="round" class="cylf" style="animation-delay:${(ix*T/n).toFixed(2)}s"/>`:`<circle cx="${x.toFixed(1)}" cy="${y}" r="${r.toFixed(1)}" class="cylf" style="animation-delay:${(ix*T/n).toFixed(2)}s"/>`;
+    return sh+`<text x="${x.toFixed(1)}" y="${y+4}" text-anchor="middle" class="cyln">${L.k==='r'?'R':''}${cy}</text>`}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="diag" role="img" aria-label="${L.n} layout, firing order ${fo.join('-')}">${extra}${cyls}</svg><small>${lab}</small><div><span class="lbl">Firing order</span> <b>${fo.join('-')}</b></div>`;
 }
 function meter(v,cls=''){return `<div class="meter ${cls}"><i style="width:${clamp(v,0,100).toFixed(0)}%"></i></div>`}
 function statRows(sc){return Object.keys(SCORE_N).map(k=>`<div class="stat"><span>${SCORE_N[k]}</span>${meter(sc[k])}<span>${Math.round(sc[k])}</span></div>`).join('')}
 function notify(t,news){
-  if(news){S.news.unshift({d:S.day,t});S.news=S.news.slice(0,30)}
+  if(news&&S){S.news.unshift({d:S.day,t});S.news=S.news.slice(0,30)}
   const el=document.createElement('div');el.className='toast';el.textContent=t;$('#toasts').append(el);
   setTimeout(()=>el.remove(),4200);
   while($('#toasts').children.length>2)$('#toasts').firstChild.remove();
@@ -601,19 +759,20 @@ function modal(html,btns){
 }
 function closeModal(){const m=$('#modal');if(m)m.remove()}
 
-/* ============ RENDER: TOP & NAV ============ */
+/* ============ TOP & NAV ============ */
 function renderTop(){
-  $('#top').innerHTML=`<div class="brand"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="var(--accent)" stroke="var(--ink)" stroke-width="2.5"/><circle cx="20" cy="20" r="7" fill="var(--ink)"/><path d="M20 2v11M20 27v11M2 20h11M27 20h11" stroke="var(--ink)" stroke-width="2.5"/></svg><div style="min-width:0"><b>${esc(S.name)}</b><small data-b="date">${dateStr(S.day)}</small></div></div>
+  if(!S)return;
+  $('#top').innerHTML=`<div class="brand"><svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="var(--accent)" stroke="var(--ink)" stroke-width="2.5"/><circle cx="20" cy="20" r="7" fill="var(--ink)"/><path d="M20 2v11M20 27v11M2 20h11M27 20h11" stroke="var(--ink)" stroke-width="2.5"/></svg><div style="min-width:0"><b>${esc(S.name)}</b><small><span data-b="date">${dateStr(S.day)}</span> · <span class="diffchip">${DIFF[S.diff||'easy'].n}</span></small></div></div>
   <div class="hstats"><div><small>Cash</small><b data-b="money"></b></div><div><small>Research pts</small><b data-b="rp"></b></div><div><small>Month P&amp;L</small><b data-b="pl"></b></div></div>
   <div class="speed" role="group" aria-label="Game speed">${['❚❚','1×','3×','10×'].map((l,i)=>`<button data-a="speed:${i}" aria-pressed="${S.speed===i}" aria-label="${i?'Speed '+l:'Pause'}">${l}</button>`).join('')}</div>
   <button class="iconbtn" data-a="menu" aria-label="Game menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>`;
   refreshLive();
 }
-function renderNav(){$('#nav').innerHTML=TABS.map(([k,l])=>`<button data-a="tab:${k}" ${tab===k?'aria-current="page"':''}>${icon(k==='eng'?'eng':k)}<span>${l}</span></button>`).join('')}
-function monthPL(){return S.pl.reduce((a,b)=>a+b,0)}
+function renderNav(){$('#nav').innerHTML=TABS.map(([k,l])=>`<button data-a="tab:${k}" ${tab===k?'aria-current="page"':''}>${icon(k)}<span>${l}</span></button>`).join('')}
+const monthPL=()=>S.pl.reduce((a,b)=>a+b,0);
 function share(){const y=S.yr,tot=y.me+y.comp.reduce((a,b)=>a+b,0);if(tot<2000&&S.lastYr)return S.lastYr.tot?S.lastYr.me/S.lastYr.tot:0;return tot?y.me/tot:0}
 function liveVal(k){
-  const [a,id]=k.split(':');
+  const [a,id]=k.split(':');const c=id?carById(id):null;
   switch(a){
     case 'money':return fm(S.money);
     case 'rp':return fn(S.rp);
@@ -622,78 +781,72 @@ function liveVal(k){
     case 'rep':return Math.round(S.rep)+'/100';
     case 'aware':return pct(S.aware);
     case 'share':return pct(share());
-    case 'want':return fn(S.cars.reduce((a,c)=>a+(c.prod||0),0));
+    case 'want':return fn(S.cars.reduce((x,c)=>x+(c.prod||0),0));
     case 'ytd':return fn(S.yr.me);
     case 'cap':return fn(S.used||0)+' / '+fn(HQ[S.hq].cap);
-    case 'built':{const c=carById(id);return c?fn(c.built||0):''}
-    case 'inv':{const c=carById(id);return c?fn(c.inv):''}
-    case 'rate':{const c=carById(id);return c?fn(c.rate):''}
-    case 'dem':{const c=carById(id);return c?fn(c.dem):''}
-    case 'sold':{const c=carById(id);return c?fn(c.sold):''}
+    case 'built':return c?fn(c.built||0):'';
+    case 'inv':return c?fn(c.inv):'';
+    case 'rate':return c?fn(c.rate):'';
+    case 'dem':return c?fn(c.dem):'';
+    case 'sold':return c?fn(c.sold):'';
   }
   return '';
 }
 function refreshLive(){
+  if(!S)return;
   document.querySelectorAll('[data-b]').forEach(el=>{const v=liveVal(el.dataset.b);if(el.textContent!==v)el.textContent=v});
   const pl=$('[data-b="pl"]');if(pl)pl.className=monthPL()>=0?'pos':'neg';
   const m=$('[data-b="money"]');if(m)m.className=S.money>=0?'':'neg';
   const cb=$('#capbar');if(cb)cb.style.width=clamp((S.used||0)/HQ[S.hq].cap*100,0,100)+'%';
-  document.querySelectorAll('[data-stock]').forEach(el=>{const c=carById(el.dataset.stock);if(!c)return;const st=c.prod===0&&c.inv===0?['Not in production','']:c.block==='cash'&&c.inv<1?['No cash to build','bad']:c.block==='cap'&&c.inv<1?['Factory full','bad']:c.inv>Math.max(60,c.rate*45)?['Overstocked','bad']:c.inv<1&&c.dem>c.rate+1?['Sold out','y']:['Selling','good'];el.className='tag '+st[1];el.textContent=st[0]});
+  document.querySelectorAll('[data-stock]').forEach(el=>{const c=carById(el.dataset.stock);if(!c)return;
+    const st=c.prod===0&&c.inv===0?['Not in production','']:c.block==='cash'&&c.inv<1?['No cash to build','bad']:c.block==='cap'&&c.inv<1?['Factory full','bad']:c.inv>Math.max(60,c.rate*45)?['Overstocked','bad']:c.inv<1&&c.dem>c.rate+1?['Sold out','y']:['Selling','good'];
+    el.className='tag '+st[1];el.textContent=st[0]});
 }
 
-/* ============ RENDER: VIEWS ============ */
-function renderView(){
-  const v=$('#view');
-  v.innerHTML=({hq:viewHQ,eng:viewEngines,cars:viewCars,market:viewMarket,lab:viewLab,race:viewRace})[tab]();
-  refreshLive();
-}
+/* ============ VIEWS ============ */
+function renderView(){if(!S)return;$('#view').innerHTML=({hq:viewHQ,eng:viewEngines,cars:viewCars,market:viewMarket,lab:viewLab,race:viewRace})[tab]();refreshLive()}
 function coachTip(){
-  const nxt=HQ[S.hq+1], inf=I();
+  const nxt=HQ[S.hq+1],inf=I();
   if(!S.engines.length)return 'Every car needs an engine. Open Engines and design your first one.';
   if(!S.cars.length)return 'Your engine is ready. Open Cars and design your first model around it.';
-  if(!S.cars.some(c=>c.prod>0))return 'Your model is ready. On the Cars tab, drag its production slider to start building and selling.';
+  if(!S.cars.some(c=>c.prod>0))return 'Your model is ready. On the Cars tab, set its production to start building and selling.';
   if(S.cars.some(c=>c.block==='cash'))return 'You are out of cash and credit, so the factory is building less. Lower production on weak sellers or raise prices.';
-  if(S.cars.some(c=>c.block==='cap'))return `You ordered more cars than your ${HQ[S.hq].n} can build, so every model gets a share. Lower some sliders or upgrade HQ.`;
+  if(S.cars.some(c=>c.block==='cap'))return `You ordered more cars than your ${HQ[S.hq].n} can build, so every version gets a share. Lower some orders or upgrade HQ.`;
   const over=S.cars.find(c=>c.inv>Math.max(150,c.rate*60));
-  if(over)return `Unsold ${over.name}s are piling up. Cut its production or lower the price.`;
-  if(nxt&&S.money>nxt.cost*inf*1.25)return `You can afford the ${nxt.n}. Upgrade to raise capacity to ${fn(nxt.cap)} cars a day.`;
-  const tr=TECH.find(t=>!S.tech.includes(t.id)&&t.y<=yearF()&&S.rp>=t.rp&&S.money>t.c*inf);
+  if(over)return `Unsold ${fullName(over)}s are piling up. Cut its production or lower the price.`;
+  if(nxt&&S.money>nxt.cost*inf*costMul()*1.25)return `You can afford the ${nxt.n}. Upgrade to raise capacity to ${fn(nxt.cap)} cars a day.`;
+  const tr=TECH.find(t=>!S.tech.includes(t.id)&&t.y<=yearF()&&S.rp>=t.rp&&S.money>t.c*inf*costMul());
   if(tr)return `${tr.n} is ready to research.`;
-  const dem=S.cars.reduce((a,c)=>a+c.dem,0);
-  if(dem>HQ[S.hq].cap*1.1)return 'Demand is higher than your factory can build. Upgrade HQ when you can.';
   if(S.aware<.15&&S.money>200e3*inf)return 'Few buyers know your brand yet. A marketing campaign will help.';
-  return 'Check the Market tab for segments where rivals are weak, then design a model for them.';
+  return 'Check the Market tab for segments where rivals are weak, then design a model or a new version for them.';
 }
 function sparkline(vals){
   if(vals.length<2)return '<p class="muted">The cash chart fills in month by month.</p>';
   const W=600,H=120,mn=Math.min(0,...vals),mx=Math.max(...vals,1),sx=W/(vals.length-1),sy=v=>H-6-(v-mn)/(mx-mn)*(H-12);
-  const pts=vals.map((v,i)=>`${(i*sx).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
-  const z=sy(0);const last=vals[vals.length-1];
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Cash over the last ${vals.length} months"><line x1="0" x2="${W}" y1="${z}" y2="${z}" stroke="var(--line)" stroke-dasharray="4 4"/><polygon points="0,${z} ${pts} ${W},${z}" fill="var(--accent)" opacity=".22"/><polyline points="${pts}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linejoin="round"/><circle cx="${W}" cy="${sy(last)}" r="5" fill="var(--green)"/></svg>
-  <div class="spread"><small>${vals.length} months ago</small><small>Now · ${fm(last)}</small></div>`;
+  const pts=vals.map((v,i)=>`${(i*sx).toFixed(1)},${sy(v).toFixed(1)}`).join(' '),z=sy(0),last=vals[vals.length-1];
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Cash over the last ${vals.length} months"><line x1="0" x2="${W}" y1="${z}" y2="${z}" stroke="var(--line)" stroke-dasharray="4 4"/><polygon points="0,${z} ${pts} ${W},${z}" fill="var(--accent)" opacity=".22"/><polyline points="${pts}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linejoin="round"/><circle cx="${W}" cy="${sy(last)}" r="5" fill="var(--green)"/></svg><div class="spread"><small>${vals.length} months ago</small><small>Now · ${fm(last)}</small></div>`;
 }
 function viewHQ(){
-  const h=HQ[S.hq],nx=HQ[S.hq+1],inf=I();
-  const camp=CAMPAIGNS.map(c=>{const cost=c.c*inf,act=S.mkt.find(m=>m.id===c.id&&m.until>S.day);const lock=S.hq<c.hq;
+  const h=HQ[S.hq],nx=HQ[S.hq+1],inf=I(),cm=costMul();
+  const camp=CAMPAIGNS.map(c=>{const cost=c.c*inf*cm,act=S.mkt.find(m=>m.id===c.id&&m.until>S.day),lock=S.hq<c.hq;
     return `<div class="tech"><div><b>${c.n}</b></div><button class="btn sm ${act?'ghost':''}" data-a="mkt:${c.id}" ${act||lock||S.money<cost?'disabled':''}>${act?'Running':lock?'Needs '+HQ[c.hq].n:fm(cost)}</button><p>+${(c.a*100).toFixed(0)} pts awareness · sales ×${c.b} for ${c.d} days</p></div>`}).join('');
-  const staff=Object.entries(ROLES).map(([k,r])=>`<div class="tech"><div><b>${r.n}</b> <span class="tag">${S.staff[k]}</span></div><div class="row" style="gap:6px"><button class="btn sm ghost" data-a="fire:${k}" ${S.staff[k]?'':'disabled'} aria-label="Let one go">−</button><button class="btn sm" data-a="hire:${k}" ${staffN()>=h.staff?'disabled':''}>Hire ${fm(2000*inf)}</button></div><p>${r.d}</p></div>`).join('');
+  const staff=Object.entries(ROLES).map(([k,r])=>`<div class="tech"><div><b>${r.n}</b> <span class="tag">${S.staff[k]}</span></div><div class="row" style="gap:6px"><button class="btn sm ghost" data-a="fire:${k}" ${S.staff[k]?'':'disabled'} aria-label="Let one go">−</button><button class="btn sm" data-a="hire:${k}" ${staffN()>=h.staff||S.money<hireCost(k)?'disabled':''}>Hire ${fm(hireCost(k))}</button></div><p>${r.d}. Each hire costs 20% more than the last.</p></div>`).join('');
   const mods=activeMods().filter(m=>m.label);
-  return `
-  <div class="coach"><b>Next</b><span>${coachTip()}</span></div>
+  return `<div class="coach"><b>Next</b><span>${coachTip()}</span></div>
   <div class="kpis">
     <div class="kpi"><small>Cash</small><b data-b="money"></b><span class="sub">Credit line ${fm(creditLimit())}</span></div>
     <div class="kpi"><small>Last 30 days</small><b data-b="pl"></b><span class="sub">profit after all costs</span></div>
-    <div class="kpi"><small>Market share</small><b data-b="share"></b><span class="sub">of world car sales</span></div>
+    <div class="kpi"><small>Market share</small><b data-b="share"></b><span class="sub">of world vehicle sales</span></div>
     <div class="kpi"><small>Reputation</small><b data-b="rep"></b><span class="sub">from reviews & racing</span></div>
     <div class="kpi"><small>Brand awareness</small><b data-b="aware"></b><span class="sub">buyers who know you</span></div>
-    <div class="kpi"><small>Cars sold</small><b data-b="ytd"></b><span class="sub">this year so far</span></div>
+    <div class="kpi"><small>Vehicles sold</small><b data-b="ytd"></b><span class="sub">this year so far</span></div>
   </div>
   <div class="grid">
     <section class="card">
       <div class="spread"><div><small>Headquarters · level ${S.hq} of 5</small><h3>${h.n}</h3></div><div class="pips">${[1,2,3,4,5].map(i=>`<i class="${i<=S.hq?'on':''}"></i>`).join('')}</div></div>
       <div><div class="spread"><small>Built today</small><small data-b="cap"></small></div><div class="meter y"><i id="capbar" style="width:0"></i></div></div>
       <div class="dl"><div><small>Staff</small><b>${staffN()} / ${h.staff}</b></div><div><small>Upkeep</small><b>${fm(h.up*inf*30)}/mo</b></div><div><small>Salaries</small><b>${fm(staffN()*55*inf*30)}/mo</b></div></div>
-      ${nx?`<button class="btn primary" data-a="upgrade" ${S.money<nx.cost*inf?'disabled':''}>Upgrade to ${nx.n} · ${fm(nx.cost*inf)}</button><small>${fn(nx.cap)} cars/day · ${nx.staff} staff</small>`:'<span class="tag y">Fully upgraded</span>'}
+      ${nx?`<button class="btn primary" data-a="upgrade" ${S.money<nx.cost*inf*cm?'disabled':''}>Upgrade to ${nx.n} · ${fm(nx.cost*inf*cm)}</button><small>${fn(nx.cap)} cars/day · ${nx.staff} staff</small>`:'<span class="tag y">Fully upgraded</span>'}
     </section>
     <section class="card"><div><small>Cash, monthly</small><h3>Bank balance</h3></div>${sparkline(S.hist.slice(-60))}</section>
   </div>
@@ -706,30 +859,39 @@ function viewHQ(){
 }
 function engCard(e){
   const s=engStats(e),L=LAYOUTS[e.layout];
-  const used=S.cars.filter(c=>c.eng===e.id).length;
+  const used=new Set(S.cars.filter(c=>c.eng===e.id).map(c=>c.model)).size;
+  const parts=s.ev?['Battery-electric']:[FUELS[e.fuel].n,s.rot?'Rotary':VALVES[e.valve].n,INJ[e.inj].n,e.turbos?`${e.turbos}× turbo @ ${e.boost.toFixed(1)} bar`:'',e.sc&&e.sc!=='none'?SCS[e.sc].n+' supercharger':'',EMATS[e.mat].n].filter(Boolean);
   return `<article class="card"><div class="spread"><div><small>${L.n} · ${e.year}</small><h3>${esc(e.name)}</h3></div>${used?`<span class="tag">${used} model${used>1?'s':''}</span>`:''}</div>
-  <div class="dl"><div><small>Power</small><b>${s.hp} hp</b></div><div><small>Torque</small><b>${s.tq} Nm</b></div><div><small>${s.ev?'Motor':'Displacement'}</small><b>${s.ev?'Electric':s.L.toFixed(1)+' L'}</b></div><div><small>Weight</small><b>${s.w} kg</b></div><div><small>Reliability</small><b>${s.rel}</b></div><div><small>Unit cost</small><b>${fm(s.cost*I())}</b></div></div>
-  <small>${s.ev?'Battery-electric':[VALVES[e.valve]&&!s.rot?VALVES[e.valve].n:'Rotary',FUELS[e.fuel].n,ASPS[e.asp].n,EMATS[e.mat].n].join(' · ')}</small></article>`;
+  <div class="dl"><div><small>Power</small><b>${fn(s.hp)} hp</b></div><div><small>Torque</small><b>${fn(s.tq)} Nm</b></div><div><small>${s.ev?'Motor':'Displacement'}</small><b>${s.ev?'Electric':s.L.toFixed(1)+' L'}</b></div><div><small>Weight</small><b>${s.w} kg</b></div><div><small>Reliability</small><b>${s.rel}</b></div><div><small>Unit cost</small><b>${fm(s.cost*I()*unitMul())}</b></div></div>
+  <small>${parts.join(' · ')}${L.fo?' · firing order '+L.fo.join('-'):''}</small></article>`;
 }
 function viewEngines(){
-  return `<div class="sect-h"><div><small>${S.engines.length} engine${S.engines.length>1?'s':''}</small><h2>Engines</h2></div><button class="btn primary" data-a="newEngine">Design engine</button></div>
-  ${S.engines.length?`<div class="grid">${S.engines.slice().reverse().map(engCard).join('')}</div>`:'<div class="card"><h3>No engines yet</h3><p class="muted" style="margin:0">Pick a layout, size the cylinders and choose the tech. Small four-cylinders are cheap and reliable; big V8s sell sports and luxury cars.</p><button class="btn primary" data-a="newEngine">Design your first engine</button></div>'}`;
+  return `<div class="sect-h"><div><small>${S.engines.length} engine${S.engines.length===1?'':'s'}</small><h2>Engines</h2></div><button class="btn primary" data-a="newEngine">Design engine</button></div>
+  ${S.engines.length?`<div class="grid">${S.engines.slice().reverse().map(engCard).join('')}</div>`:'<div class="card"><h3>No engines yet</h3><p class="muted" style="margin:0">Pick a layout and fuel, size the cylinders and choose the tech. Small four-cylinders are cheap and reliable; big diesels move trucks; V8s sell sports and luxury cars.</p><button class="btn primary" data-a="newEngine">Design your first engine</button></div>'}`;
 }
-function carCard(c){
-  const st=carStats(c),inf=I(),unit=st.cost*inf*modCost(),margin=c.price*inf-unit,cap=HQ[S.hq].cap,lim=emisLimit(yearF());
-  return `<article class="card carcard">
-  <div class="spread"><div><small>${BODIES[c.body].n} · ${Math.floor(c.year)} · review ${c.review.toFixed(1)}/10</small><h3>${esc(c.name)}</h3></div><span data-stock="${c.id}" class="tag"></span></div>
-  <div class="pic">${carSVG(c.body,c.color,c.name)}</div>
+function trimBlock(c){
+  const st=carStats(c),inf=I(),unit=st.cost*inf*modCost(),margin=c.price*inf-unit,cap=HQ[S.hq].cap,lim=emisLimit(yearF()),E=engById(c.eng);
+  return `<div class="trim">
+  <div class="spread"><div style="min-width:0"><b class="trimname">${esc(c.trim||'Standard')}</b> <small>review ${c.review.toFixed(1)}/10</small><div class="muted" style="font-size:.85rem">${esc(engDesc(E))} · ${GEARS[c.gb].n} · ${DRIVES[c.dt].n}${c.lsd?' + LSD':''}</div></div><span data-stock="${c.id}" class="tag"></span></div>
   <div class="dl"><div><small>Built / day</small><b data-b="built:${c.id}"></b></div><div><small>In stock</small><b data-b="inv:${c.id}"></b></div><div><small>Sold / day</small><b data-b="rate:${c.id}"></b></div><div><small>Demand / day</small><b data-b="dem:${c.id}"></b></div><div><small>Margin / car</small><b class="${margin>=0?'pos':'neg'}">${fm(margin)}</b></div></div>
   ${lim&&st.emis>lim?`<span class="tag bad">${st.emis} g/km is over the ${Math.round(lim)} g/km limit</span>`:''}
-  <div class="field"><div class="spread"><label class="lbl" for="prod-${c.id}">Production</label><b><span id="pv-${c.id}">${c.prod}</span> / day</b></div><input type="range" id="prod-${c.id}" data-i="prod:${c.id}" min="0" max="${cap}" step="1" value="${Math.min(c.prod,cap)}"></div>
+  <div class="field"><div class="spread"><label class="lbl" for="pn-${c.id}">Production per day</label><input type="number" inputmode="numeric" class="num" id="pn-${c.id}" data-i="prodn:${c.id}" min="0" max="${cap}" value="${Math.min(c.prod,cap)}"></div><input type="range" id="prod-${c.id}" data-i="prod:${c.id}" min="0" max="${cap}" step="1" value="${Math.min(c.prod,cap)}" aria-label="Production per day"></div>
   <div class="row"><div class="field" style="flex:1"><label class="lbl" for="price-${c.id}">Price (follows inflation)</label><input type="number" id="price-${c.id}" data-i="price:${c.id}" min="1" step="10" value="${Math.round(c.price*inf/10)*10}"></div><div class="field" style="flex:1"><small>Build cost</small><b style="padding:10px 0">${fm(unit)}</b></div></div>
   <div class="row"><button class="btn sm ghost" data-a="detail:${c.id}">Specs</button><button class="btn sm ghost" data-a="retire:${c.id}">Retire</button><small style="margin-left:auto">Sold total <span data-b="sold:${c.id}"></span></small></div>
-  </article>`;
+  </div>`;
 }
 function viewCars(){
+  const models=[...new Set(S.cars.map(c=>c.model))];
+  const card=m=>{const vs=S.cars.filter(c=>c.model===m),f=vs[0];
+    return `<article class="card carcard"><div class="spread"><div><small>${BODIES[f.body].n} · ${Math.floor(f.year)} · ${vs.length} version${vs.length>1?'s':''}</small><h3>${esc(f.mname)}</h3></div></div>
+    <div class="pic">${carSVG(f.body,f.color,f.mname)}</div>${vs.map(trimBlock).join('')}
+    <button class="btn" data-a="addTrim:${m}">Add a version</button></article>`};
   return `<div class="sect-h"><div><small>Factory: <span data-b="want"></span> ordered · ${fn(HQ[S.hq].cap)} cars/day capacity, shared</small><h2>Cars</h2></div><button class="btn primary" data-a="newCar">Design car</button></div>
-  ${S.cars.length?`<div class="grid">${S.cars.slice().reverse().map(carCard).join('')}</div>`:`<div class="card"><h3>No models yet</h3><p class="muted" style="margin:0">${S.engines.length?'Choose a body, fit one of your engines and set a price.':'You need an engine first.'}</p><button class="btn primary" data-a="${S.engines.length?'newCar':'tab:eng'}">${S.engines.length?'Design your first car':'Go to Engines'}</button></div>`}`;
+  ${models.length?`<div class="grid">${models.slice().reverse().map(card).join('')}</div>`:`<div class="card"><h3>No models yet</h3><p class="muted" style="margin:0">${S.engines.length?'Choose a body, fit one of your engines and set a price.':'You need an engine first.'}</p><button class="btn primary" data-a="${S.engines.length?'newCar':'tab:eng'}">${S.engines.length?'Design your first car':'Go to Engines'}</button></div>`}`;
+}
+function anaBlock(title,obj){
+  const ent=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,5),tot=Object.values(obj).reduce((a,b)=>a+b,0)||1,mx=ent.length?ent[0][1]:1;
+  return `<div class="sect"><span class="lbl">${title}</span>${ent.length?ent.map(([k,v],i)=>`<div><div class="spread"><span>${i===0?'<b>':''}${esc(k)}${i===0?'</b>':''}</span><small>${fn(v)} · ${pct(v/tot)}</small></div><div class="meter ${i===0?'y':''}"><i style="width:${(v/mx*100).toFixed(1)}%"></i></div></div>`).join(''):'<small class="muted">No sales yet</small>'}</div>`;
 }
 function viewMarket(){
   const y=yearF(),stats={};S.cars.forEach(c=>stats[c.id]=carStats(c,y));
@@ -739,226 +901,301 @@ function viewMarket(){
     return `<tr><td><b>${SEGS[s].n}</b></td><td class="n">${fn(si.size)}</td><td class="n">${pct(si.me/tot)}</td><td><span class="dot" style="background:${S.comp[bi].c}"></span>${S.comp[bi].n.split(' ')[0]} ${pct(si.comp[bi]/tot)}</td></tr>`}).join('');
   const src=S.yr.me+S.yr.comp.reduce((a,b)=>a+b,0)>2000?S.yr:(S.lastYr||S.yr);
   const tot=src.me+src.comp.reduce((a,b)=>a+b,0)||1;
-  const board=[{n:S.name,c:'var(--accent)',u:src.me,me:1},...S.comp.map((cp,i)=>({n:cp.n,c:cp.c,u:src.comp[i]}))].sort((a,b)=>b.u-a.u);
+  const board=[{n:S.name,tag:'You',c:'var(--accent)',u:src.me,me:1},...S.comp.map((cp,i)=>({n:cp.n,tag:cp.tag,c:cp.c,u:src.comp[i]||0,off:y<cp.from}))].filter(b=>!b.off).sort((a,b)=>b.u-a.u);
   const mx=board[0].u||1;
   const yrs=S.years.slice(-40);
   let chart='<p class="muted">Your yearly share appears here after the first full year.</p>';
-  if(yrs.length>=2){const W=600,H=150,mxs=Math.max(.05,...yrs.map(r=>Math.max(r.share,...r.cs)));const sx=W/(yrs.length-1),sy=v=>H-8-v/mxs*(H-16);
-    const line=(arr,col,w)=>`<polyline points="${arr.map((v,i)=>`${(i*sx).toFixed(1)},${sy(v).toFixed(1)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linejoin="round"/>`;
+  if(yrs.length>=2){const W=600,H=150,mxs=Math.max(.05,...yrs.map(r=>Math.max(r.share,...r.cs.map(v=>v||0))));const sx=W/(yrs.length-1),sy=v=>H-8-v/mxs*(H-16);
+    const line=(arr,col,w)=>`<polyline points="${arr.map((v,i)=>`${(i*sx).toFixed(1)},${sy(v||0).toFixed(1)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linejoin="round"/>`;
     chart=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Market share by year"><line x1="0" x2="${W}" y1="${sy(0)}" y2="${sy(0)}" stroke="var(--line)"/>${S.comp.map((cp,i)=>line(yrs.map(r=>r.cs[i]),cp.c,1.5)).join('')}${line(yrs.map(r=>r.share),'var(--ink)',3.5)}</svg><div class="spread"><small>${yrs[0].y}</small><small>Bold line: ${esc(S.name)}</small><small>${yrs[yrs.length-1].y}</small></div>`}
-  return `<div class="sect-h"><div><small>World market · ${new Date(DAY0+S.day*864e5).getUTCFullYear()}</small><h2>Market</h2></div><span class="tag">Emission limit ${emisLimit(y)?Math.round(emisLimit(y))+' g/km':'none yet'}</span></div>
+  const ana=S.ana.n>0?S.ana:(S.anaLast||S.ana);
+  return `<div class="sect-h"><div><small>World market · ${curYear()}</small><h2>Market</h2></div><span class="tag">Emission limit ${emisLimit(y)?Math.round(emisLimit(y))+' g/km':'none yet'}</span></div>
+  <section class="card"><div class="spread"><h3>Your best sellers</h3><small>${ana===S.ana?'This year so far':'Last year'} · ${fn(ana.n)} vehicles</small></div>
+   <div class="anagrid">${anaBlock('Body',ana.body)}${anaBlock('Engine',ana.eng)}${anaBlock('Gearbox',ana.gb)}${anaBlock('Drivetrain',ana.dt)}</div></section>
   <div class="grid">
-   <section class="card"><h3>Manufacturers</h3><small>${src===S.yr?'This year so far':'Last year'} · units sold</small>
-    <div class="track">${board.map(b=>`<div><div class="spread"><span>${b.me?'<b>':''}${esc(b.n)}${b.me?'</b>':''}</span><small>${fn(b.u)} · ${pct(b.u/tot)}</small></div><div class="meter"><i style="width:${(b.u/mx*100).toFixed(1)}%;background:${b.c}"></i></div></div>`).join('')}</div></section>
+   <section class="card"><h3>Manufacturers</h3><small>${src===S.yr?'This year so far':'Last year'} · vehicles sold</small>
+    <div class="track">${board.map(b=>`<div><div class="spread"><span>${b.me?'<b>':''}${esc(b.n)}${b.me?'</b>':''} <small>${esc(b.tag)}</small></span><small>${fn(b.u)} · ${pct(b.u/tot)}</small></div><div class="meter"><i style="width:${(b.u/mx*100).toFixed(1)}%;background:${b.c}"></i></div></div>`).join('')}</div></section>
    <section class="card"><h3>Share history</h3>${chart}</section>
   </div>
   <section class="card"><h3>Segments</h3><small>Daily buyers worldwide and who wins them</small><div class="tbl"><table><thead><tr><th>Segment</th><th class="n">Buyers/day</th><th class="n">You</th><th>Leader</th></tr></thead><tbody>${rows}</tbody></table></div></section>
   ${activeMods().filter(m=>m.label).map(m=>`<div class="card"><span class="tag bad">Until ${dateStr(m.until)}</span><span>${esc(m.label)}</span></div>`).join('')}`;
 }
 function viewLab(){
-  const y=yearF(),inf=I();
+  const y=yearF(),inf=I(),cm=costMul();
   const done=TECH.filter(t=>S.tech.includes(t.id));
   const avail=TECH.filter(t=>!S.tech.includes(t.id)&&t.y<=y);
-  const soon=TECH.filter(t=>!S.tech.includes(t.id)&&t.y>y).slice(0,5);
-  const item=(t,state)=>`<div class="tech"><div><b>${t.n}</b> <span class="tag">${t.g}</span></div>${state==='a'?`<button class="btn sm ${S.rp>=t.rp&&S.money>=t.c*inf?'primary':''}" data-a="research:${t.id}" ${S.rp>=t.rp&&S.money>=t.c*inf?'':'disabled'}>${t.rp} RP · ${fm(t.c*inf)}</button>`:state==='s'?`<span class="tag">From ${t.y}</span>`:'<span class="tag good">Done</span>'}<p>${t.d}</p></div>`;
-  return `<div class="sect-h"><div><small>${fn(S.rp)} research points · +${(.2+S.staff.eng*.2).toFixed(1)}/day</small><h2>Research</h2></div></div>
+  const soon=TECH.filter(t=>!S.tech.includes(t.id)&&t.y>y).slice(0,6);
+  const item=(t,st)=>{const ok=S.rp>=t.rp&&S.money>=t.c*inf*cm;return `<div class="tech"><div><b>${t.n}</b> <span class="tag">${t.g}</span></div>${st==='a'?`<button class="btn sm ${ok?'primary':''}" data-a="research:${t.id}" ${ok?'':'disabled'}>${t.rp} RP · ${fm(t.c*inf*cm)}</button>`:`<span class="tag">From ${t.y}</span>`}<p>${t.d}</p></div>`};
+  return `<div class="sect-h"><div><small>${fn(S.rp)} research points · +${((.2+S.staff.eng*.2)*rpMul()).toFixed(2)}/day</small><h2>Research</h2></div></div>
   <div class="grid">
    <section class="card"><h3>Available</h3>${avail.length?avail.map(t=>item(t,'a')).join(''):'<p class="muted">Nothing new right now. More technology arrives as the years pass.</p>'}</section>
-   <section class="card"><h3>Coming soon</h3>${soon.map(t=>item(t,'s')).join('')||'<p class="muted">You have seen every technology.</p>'}${done.length?`<h3 style="margin-top:10px">Researched</h3><div class="chips">${done.map(t=>`<span class="tag good">${t.n}</span>`).join('')}</div>`:''}</section>
+   <section class="card"><h3>Coming soon</h3>${soon.map(t=>item(t,'s')).join('')||'<p class="muted">You have seen every technology.</p>'}${done.length?`<h3 style="margin-top:10px">Researched (${done.length})</h3><div class="chips">${done.map(t=>`<span class="tag good">${t.n}</span>`).join('')}</div>`:''}</section>
   </div>`;
 }
 function raceIdx(c,race){const st=carStats(c);let h=st.handling;if(race.awd&&c.dt==='awd')h+=.15;return .45*(10/st.t)+.35*(st.top/200)+.2*h}
 function expIdx(y){const k=clamp((y-1970)/55,0,1);const t=13-6.5*k,top=150+100*k;return .45*(10/t)+.35*(top/200)+.14}
 function viewRace(){
   const y=yearF(),inf=I();
-  const cars=S.cars;
   return `<div class="sect-h"><div><small>Win prize money, reputation and fans</small><h2>Racing</h2></div></div>
   <div class="grid">${RACES.map(r=>{const lock=y<r.y,cd=S.races[r.id]&&S.races[r.id]>S.day;
     return `<section class="card"><div class="spread"><h3>${r.n}</h3>${lock?`<span class="tag">From ${r.y}</span>`:cd?`<span class="tag">Next ${dateStr(S.races[r.id])}</span>`:'<span class="tag good">Open</span>'}</div><p class="muted" style="margin:0">${r.d}</p>
     <div class="dl"><div><small>Entry fee</small><b>${fm(r.fee*inf)}</b></div><div><small>Winner gets</small><b>${fm(r.prize*inf)}</b></div><div><small>Field pace</small><b>${(expIdx(y)*r.tier*100).toFixed(0)}</b></div></div>
-    ${cars.length&&!lock?`<div class="field"><label class="lbl" for="rc-${r.id}">Your entry</label><select id="rc-${r.id}">${cars.map(c=>`<option value="${c.id}">${esc(c.name)} · pace ${(raceIdx(c,r)*100).toFixed(0)}</option>`).join('')}</select></div>
+    ${S.cars.length&&!lock?`<div class="field"><label class="lbl" for="rc-${r.id}">Your entry</label><select id="rc-${r.id}">${S.cars.map(c=>`<option value="${c.id}">${esc(fullName(c))} · pace ${(raceIdx(c,r)*100).toFixed(0)}</option>`).join('')}</select></div>
     <button class="btn primary" data-a="race:${r.id}" ${cd||S.money<r.fee*inf?'disabled':''}>Enter race</button>`:''}</section>`}).join('')}</div>`;
 }
 
 /* ============ DESIGNERS ============ */
-function chipRow(key,opts,cur,kind){return `<div class="chips">${Object.entries(opts).map(([k,o])=>{const lock=!has(o.t);return `<button class="chip" data-a="${kind}:${key}:${k}" aria-pressed="${cur===k}" ${lock?'disabled':''}>${o.n}${lock?` <span class="lk">${TECH.find(t=>t.id===o.t).y}</span>`:''}</button>`}).join('')}</div>`}
-function openEngine(){
-  draft={name:'Engine '+(S.engines.length+1),layout:'i4',bore:82,stroke:80,valve:has('dohc')?'dohc':has('sohc')?'sohc':'ohv',fuel:has('efi')?'efi':'carb',asp:'na',mat:has('alu')?'alu':'iron',evHp:200};
-  sheet='engine';renderSheet();
+function chipRow(key,opts,cur,kind,disabled){return `<div class="chips">${Object.entries(opts).map(([k,o])=>{const lock=!has(o.t);return `<button class="chip" data-a="${kind}:${key}:${k}" aria-pressed="${cur===k}" ${lock||disabled?'disabled':''}>${o.n}${lock&&techYear(o.t)?` <span class="lk">${techYear(o.t)}</span>`:''}</button>`}).join('')}</div>`}
+function fixEngineDraft(){
+  const L=LAYOUTS[draft.layout];if(L.ev)return;
+  if(L.rot&&draft.fuel==='diesel')draft.fuel='petrol';
+  if(!INJ[draft.inj].f.includes(draft.fuel)||!has(INJ[draft.inj].t)){const ok=Object.entries(INJ).filter(([k,j])=>j.f.includes(draft.fuel)&&has(j.t));draft.inj=(ok.find(([k])=>k==='di')||ok.find(([k])=>k==='mpi')||ok[0])[0]}
+  const cap=turboCap();draft.turbos=Math.min(draft.turbos,cap.n);draft.boost=clamp(draft.boost,.2,Math.max(.2,cap.b));
 }
-function engDraftStats(){return engStats({...draft,year:Math.floor(yearF())})}
+function openEngine(){
+  draft={name:'Engine '+(S.engines.length+1),layout:'i4',bore:82,stroke:80,valve:has('dohc')?'dohc':has('sohc')?'sohc':'ohv',fuel:'petrol',inj:'carb',turbos:0,boost:.6,sc:'none',mat:has('alu')?'alu':'iron',evHp:200,wo:null};
+  fixEngineDraft();sheet='engine';renderSheet();
+}
+const engDraftStats=()=>engStats({...draft,year:Math.floor(yearF())});
+const engDev=s=>(40e3+s.cost*15)*I()*costMul();
 function engStatsHTML(){
-  const s=engDraftStats(),inf=I(),dev=(40e3+s.cost*15)*inf;
-  const cyls=s.ev?'<svg viewBox="0 0 120 60" width="160" aria-hidden="true"><rect x="10" y="10" width="80" height="40" rx="6" fill="var(--rim)"/><rect x="90" y="22" width="12" height="16" rx="2" fill="var(--rim)"/><path d="M52 16l-10 16h12l-6 14 16-20H52l6-10z" fill="var(--accent)"/></svg>':
-    s.rot?'<i style="width:58px;height:44px;border-radius:40%"></i><i style="width:58px;height:44px;border-radius:40%"></i>':
-    Array.from({length:s.cyl},()=>`<i style="width:${Math.round(draft.bore*.38)}px;height:${Math.round(draft.bore*.38)}px"></i>`).join('');
-  return `<div class="cyl" aria-hidden="true">${cyls}</div>
-  <div class="dl"><div><small>Power</small><b>${s.hp} hp</b></div><div><small>Torque</small><b>${s.tq} Nm</b></div><div><small>${s.ev?'Type':'Displacement'}</small><b>${s.ev?'Electric':s.L.toFixed(2)+' L'}</b></div><div><small>Redline</small><b>${fn(s.rpm)} rpm</b></div><div><small>Weight</small><b>${s.w} kg</b></div><div><small>Unit cost</small><b>${fm(s.cost*inf)}</b></div></div>
+  const s=engDraftStats(),inf=I();
+  return `${engineDiagram(draft)}
+  <div class="dl"><div><small>Power</small><b>${fn(s.hp)} hp</b></div><div><small>Torque</small><b>${fn(s.tq)} Nm</b></div><div><small>${s.ev?'Type':'Displacement'}</small><b>${s.ev?'Electric':s.L.toFixed(2)+' L'}</b></div><div><small>Redline</small><b>${fn(s.rpm)} rpm</b></div><div><small>Weight</small><b>${s.w} kg</b></div><div><small>Unit cost</small><b>${fm(s.cost*inf*unitMul())}</b></div></div>
   <div class="stat"><span>Reliability</span>${meter(s.rel)}<span>${s.rel}</span></div>
-  <div class="stat"><span>hp per litre</span>${meter(s.ev?100:s.spec)}<span>${s.ev?'—':Math.round(s.spec)}</span></div>
-  <small>Development cost ${fm(dev)}</small>`;
+  ${s.ev?'':`<div class="stat"><span>hp per litre</span>${meter(s.hp/s.L/2)}<span>${Math.round(s.hp/s.L)}</span></div>`}
+  ${s.rel<40?'<span class="tag bad">Very fragile: expect recalls and race retirements</span>':''}
+  <small>Development cost ${fm(engDev(s))}</small>`;
 }
 function sheetEngine(){
-  const L=LAYOUTS[draft.layout];
-  return `<div class="sheet-in"><div class="sect-h"><div><small>Engine bay · ${new Date(DAY0+S.day*864e5).getUTCFullYear()} technology</small><h2>Design engine</h2></div><button class="btn ghost" data-a="closeSheet">Cancel</button></div>
+  const L=LAYOUTS[draft.layout],cap=turboCap(),s=engDraftStats();
+  const fuels=Object.fromEntries(Object.entries(FUELS).map(([k,f])=>[k,L.rot&&k==='diesel'?{...f,t:'__never'}:f]));
+  const injs=Object.fromEntries(Object.entries(INJ).filter(([k,j])=>j.f.includes(draft.fuel)));
+  return `<div class="sheet-in"><div class="sect-h"><div><small>Engine bay · ${curYear()} technology</small><h2>Design engine</h2></div><button class="btn ghost" data-a="closeSheet">Cancel</button></div>
   <div class="split"><div class="sect">
    <div class="field"><label class="lbl" for="ename">Name</label><input type="text" id="ename" data-i="dname" value="${esc(draft.name)}" maxlength="28"></div>
    <div class="field"><span class="lbl">Layout</span>${chipRow('layout',LAYOUTS,draft.layout,'eo')}</div>
-   ${L.ev?`<div class="field"><div class="spread"><label class="lbl" for="evhp">Motor power</label><b id="evv">${draft.evHp} hp</b></div><input type="range" id="evhp" data-i="evHp" min="80" max="900" step="10" value="${draft.evHp}"></div>`:`
-   ${L.rotary?'':`<div class="field"><div class="spread"><label class="lbl" for="bore">Bore</label><b id="borev">${draft.bore} mm</b></div><input type="range" id="bore" data-i="bore" min="60" max="105" value="${draft.bore}"></div>
-   <div class="field"><div class="spread"><label class="lbl" for="stroke">Stroke</label><b id="strokev">${draft.stroke} mm</b></div><input type="range" id="stroke" data-i="stroke" min="55" max="105" value="${draft.stroke}"></div>
+   ${L.ev?`<div class="field"><div class="spread"><label class="lbl" for="evhp">Motor power</label><b id="evv">${draft.evHp} hp</b></div><input type="range" id="evhp" data-i="evHp" min="80" max="1500" step="10" value="${draft.evHp}"></div>`:`
+   <div class="field"><span class="lbl">Fuel</span>${chipRow('fuel',fuels,draft.fuel,'eo')}</div>
+   <div class="field"><span class="lbl">Fuel system</span>${chipRow('inj',injs,draft.inj,'eo')}</div>
+   ${L.rot?'':`<div class="field"><div class="spread"><label class="lbl" for="bore">Bore</label><b id="borev">${draft.bore} mm</b></div><input type="range" id="bore" data-i="bore" min="60" max="${draft.fuel==='diesel'?140:110}" value="${draft.bore}"></div>
+   <div class="field"><div class="spread"><label class="lbl" for="stroke">Stroke</label><b id="strokev">${draft.stroke} mm</b></div><input type="range" id="stroke" data-i="stroke" min="55" max="${draft.fuel==='diesel'?160:110}" value="${draft.stroke}"></div>
    <small>Bore wider than stroke revs higher for more power. A long stroke gives more torque.</small>
    <div class="field"><span class="lbl">Valvetrain</span>${chipRow('valve',VALVES,draft.valve,'eo')}</div>`}
-   <div class="field"><span class="lbl">Fuel system</span>${chipRow('fuel',FUELS,draft.fuel,'eo')}</div>
-   <div class="field"><span class="lbl">Aspiration</span>${chipRow('asp',ASPS,draft.asp,'eo')}</div>
+   <div class="field"><div class="spread"><label class="lbl" for="turbos">Turbochargers</label><b id="turbosv">${draft.turbos||'None'}</b></div>
+     ${cap.n?`<input type="range" id="turbos" data-i="turbos" min="0" max="${cap.n}" step="1" value="${draft.turbos}">`:`<small class="muted">Research Turbocharger (${techYear('turbo')}) to fit turbos.</small>`}</div>
+   ${cap.n?`<div class="field"><div class="spread"><label class="lbl" for="boost">Boost per turbo</label><b id="boostv">${draft.turbos?draft.boost.toFixed(1)+' bar':'no turbos'}</b></div><input type="range" id="boost" data-i="boost" min="0.2" max="${cap.b}" step="0.1" value="${draft.boost}"><small class="muted">Your tech allows up to ${cap.n} turbo${cap.n>1?'s':''} at ${cap.b} bar${cap.n<10?'. More research raises this to 10 turbos at 10 bar':''}.</small></div>`:''}
+   <div class="field"><span class="lbl">Supercharger</span>${chipRow('sc',SCS,draft.sc,'eo')}</div>
    <div class="field"><span class="lbl">Block material</span>${chipRow('mat',EMATS,draft.mat,'eo')}</div>`}
+   <div class="field"><label class="lbl" for="ewo">Weight override (kg)</label><input type="number" id="ewo" data-i="ewo" min="20" step="1" placeholder="Calculated: ${s.wAuto} kg" value="${draft.wo||''}"><small class="muted">Leave blank to use the calculated weight. Allowed range 50–200% of it.</small></div>
   </div><div class="card sticky" id="estats">${engStatsHTML()}</div></div></div>
   <div class="sheet-foot"><span class="muted">Cash <b data-b="money"></b></span><button class="btn primary" data-a="buildEngine">Build engine</button></div>`;
 }
-function openCar(){
+function suggestTrim(eid,dt){const e=engById(eid),s=engStats(e);if(s.ev)return 'e'+Math.round(s.hp/10)*10;return s.L.toFixed(1)+(e.fuel==='diesel'?'d':e.fuel==='lpg'?' LPG':'i')+(e.turbos?'T':'')+(dt==='awd'?' AWD':'')}
+function openCar(model){
   const e=S.engines[S.engines.length-1];
-  draft={name:pick(['Falcon','Merlin','Swift','Harrier','Osprey','Kite','Avocet','Plover','Condor','Tern','Lark','Shrike']),body:'sedan',eng:e.id,gb:LAYOUTS[e.layout].ev?'ev1':has('m5')?'m5':'m4',dt:'fwd',int:'standard',mat:'steel',safety:Object.keys(SAFETY).filter(k=>has(SAFETY[k].t)&&k!=='adas'),color:pick(PAINTS)[1],price:null};
+  if(model){const b=S.cars.find(c=>c.model===model);
+    draft={mode:'trim',model,mname:b.mname,body:b.body,mat:b.mat,eng:b.eng,gb:b.gb,dt:b.dt,lsd:b.lsd,susp:b.susp,int:b.int,hl:b.hl,equip:b.equip.slice(),color:b.color,price:null,cw:null,trim:''};
+  }else{
+    draft={mode:'new',mname:pick(['Falcon','Merlin','Swift','Harrier','Osprey','Kite','Avocet','Plover','Condor','Tern','Lark','Shrike','Kestrel','Heron']),body:'sedan',eng:e.id,gb:LAYOUTS[e.layout].ev?'ev1':has('m5')?'m5':'m4',dt:'fwd',lsd:false,susp:'std',int:'standard',mat:'steel',hl:'halogen',
+      equip:Object.keys(EQUIP).filter(k=>has(EQUIP[k].t)&&!['adas','selfdrive','sunroof'].includes(k)&&EQUIP[k].cost<300),color:pick(PAINTS)[1],price:null,cw:null,trim:''};
+  }
+  draft.trim=draft.autoTrim=suggestTrim(draft.eng,draft.dt);
   sheet='car';renderSheet();
 }
-function draftCar(){return {...draft,year:yearF(),db:Math.min(15,S.staff.des*1.5),review:6,price:draft.price||0}}
+function draftCar(){return {...draft,name:draft.mname,year:yearF(),db:Math.min(15,S.staff.des*1.5),review:6,price:draft.price||0}}
+const carDev=()=>(120e3+BODIES[draft.body].cost*40)*I()*costMul()*(draft.mode==='trim'?.3:1);
 function carStatsHTML(){
-  const c=draftCar(),st=carStats(c),inf=I(),sp=suggestPrice(st,c.body),price=draft.price?draft.price/inf:sp,bs=bestSeg(st,c.body);
-  const lim=emisLimit(yearF());
-  const est=SEGK.map(s=>{const sz=segSize(s,yearF());if(!sz)return 0;const ap=playerAppeal({...c,price,review:6.5},st,s,yearF())*mktBoost()*S.aware*repF();const ca=S.comp.reduce((a,cp)=>a+cp.q[s]*cp.q[s],0);return sz*ap/(ap+ca)}).reduce((a,b)=>a+b,0);
-  return `<div class="pic" style="background:linear-gradient(to bottom,transparent 72%,var(--sunk) 72%);border-radius:8px">${carSVG(c.body,c.color,draft.name)}</div>
-  <div class="dl"><div><small>0–100 km/h</small><b>${st.t.toFixed(1)} s</b></div><div><small>Top speed</small><b>${st.top} km/h</b></div><div><small>${st.ev?'Drive':'Fuel use'}</small><b>${st.ev?'Electric':st.l100.toFixed(1)+' L/100'}</b></div><div><small>Weight</small><b>${fn(st.w)} kg</b></div><div><small>Power</small><b>${st.hp} hp</b></div><div><small>CO₂</small><b class="${lim&&st.emis>lim?'neg':''}">${st.emis} g/km</b></div></div>
+  const c=draftCar(),st=carStats(c),inf=I(),sp=suggestPrice(st,c.body),price=draft.price?draft.price/inf:sp,bs=bestSeg(st,c.body),lim=emisLimit(yearF());
+  const est=SEGK.map(s=>{const sz=segSize(s,yearF());if(!sz)return 0;const ap=playerAppeal({...c,price,review:6.5},st,s,yearF())*mktBoost()*S.aware*repF()*demandMul();const ca=S.comp.reduce((a,cp)=>a+(yearF()>=cp.from?cp.q[s]*cp.q[s]:0),0);return sz*ap/(ap+ca)}).reduce((a,b)=>a+b,0);
+  return `<div class="pic" style="background:linear-gradient(to bottom,transparent 72%,var(--sunk) 72%);border-radius:8px">${carSVG(c.body,c.color,draft.mname)}</div>
+  <div class="dl"><div><small>0–100 km/h</small><b>${st.t.toFixed(1)} s</b></div><div><small>Top speed</small><b>${st.top} km/h</b></div><div><small>${st.ev?'Energy use':'Fuel use'}</small><b>${st.ev?st.kwh.toFixed(1)+' kWh/100':st.l100.toFixed(1)+' L/100'}</b></div><div><small>Weight</small><b>${fn(st.w)} kg</b></div><div><small>Power</small><b>${fn(st.hp)} hp</b></div><div><small>CO₂</small><b class="${lim&&st.emis>lim?'neg':''}">${st.emis} g/km</b></div></div>
   ${statRows(st.sc)}
   <div><small>Best fit: ${SEGS[bs].n} buyers</small><div class="chips" style="margin-top:6px">${SEGK.filter(s=>BODIES[c.body].seg[s]>=.3).map(s=>`<span class="tag ${s===bs?'y':''}">${SEGS[s].n} ${Math.round(st.fit[s]*100)}</span>`).join('')}</div></div>
   <div class="dl"><div><small>Build cost</small><b>${fm(st.cost*inf)}</b></div><div><small>Suggested price</small><b>${fm(Math.round(sp*inf/10)*10)}</b></div><div><small>Est. demand</small><b>${fn(est)}/day</b></div></div>`;
 }
 function sheetCar(){
-  const E=engById(draft.eng),ev=LAYOUTS[E.layout].ev;
-  const bodies=Object.fromEntries(Object.entries(BODIES).map(([k,b])=>[k,b]));
+  const E=engById(draft.eng),ev=LAYOUTS[E.layout].ev,tr=draft.mode==='trim';
   const gears=Object.fromEntries(Object.entries(GEARS).filter(([k,g])=>ev?g.ev:!g.ev));
-  const dev=(120e3+BODIES[draft.body].cost*40)*I();
-  return `<div class="sheet-in"><div class="sect-h"><div><small>Design studio · development ${fm(dev)}</small><h2>Design car</h2></div><button class="btn ghost" data-a="closeSheet">Cancel</button></div>
+  const eqRow=cat=>`<div class="chips">${Object.entries(EQUIP).filter(([k,o])=>o.cat===cat).map(([k,o])=>{const lock=!has(o.t);return `<button class="chip" data-a="cs:${k}" aria-pressed="${draft.equip.includes(k)}" ${lock?'disabled':''}>${o.n}${lock?` <span class="lk">${techYear(o.t)}</span>`:''}</button>`}).join('')}</div>`;
+  const st=carStats(draftCar());
+  return `<div class="sheet-in"><div class="sect-h"><div><small>Design studio · development ${fm(carDev())}</small><h2>${tr?'New version':'Design car'}</h2></div><button class="btn ghost" data-a="closeSheet">Cancel</button></div>
   <div class="split"><div class="sect">
-   <div class="field"><label class="lbl" for="cname">Model name</label><input type="text" id="cname" data-i="dname" value="${esc(draft.name)}" maxlength="24"></div>
-   <div class="field"><span class="lbl">Body</span>${chipRow('body',bodies,draft.body,'co')}</div>
-   <div class="field"><label class="lbl" for="ceng">Engine</label><select id="ceng" data-i="ceng">${S.engines.map(e=>{const s=engStats(e);return `<option value="${e.id}" ${e.id===draft.eng?'selected':''}>${esc(e.name)} · ${s.hp} hp ${s.ev?'electric':s.L.toFixed(1)+' L'}</option>`}).join('')}</select></div>
+   ${tr?`<div class="card"><small>Adding a version of</small><h3>${esc(draft.mname)}</h3><small>${BODIES[draft.body].n} · ${MATS[draft.mat].n} body. Body and shell stay the same; everything else can change.</small></div>`:
+   `<div class="field"><label class="lbl" for="cname">Model name</label><input type="text" id="cname" data-i="mname" value="${esc(draft.mname)}" maxlength="24"></div>
+    <div class="field"><span class="lbl">Body</span>${chipRow('body',BODIES,draft.body,'co')}</div>`}
+   <div class="field"><label class="lbl" for="ctrim">Version name</label><input type="text" id="ctrim" data-i="trim" value="${esc(draft.trim)}" maxlength="18" placeholder="e.g. 2.0d AWD"></div>
+   <div class="field"><label class="lbl" for="ceng">Engine</label><select id="ceng" data-i="ceng">${S.engines.map(e=>`<option value="${e.id}" ${e.id===draft.eng?'selected':''}>${esc(e.name)} · ${esc(engDesc(e))}</option>`).join('')}</select></div>
    <div class="field"><span class="lbl">Gearbox</span>${chipRow('gb',gears,draft.gb,'co')}</div>
-   <div class="field"><span class="lbl">Drive</span>${chipRow('dt',DRIVES,draft.dt,'co')}</div>
+   <div class="field"><span class="lbl">Drive</span>${chipRow('dt',DRIVES,draft.dt,'co')}<div class="chips"><button class="chip" data-a="lsd" aria-pressed="${!!draft.lsd}" ${has('lsd')?'':'disabled'}>Limited-slip diff${has('lsd')?'':` <span class="lk">${techYear('lsd')}</span>`}</button></div></div>
+   <div class="field"><span class="lbl">Suspension</span>${chipRow('susp',SUSP,draft.susp,'co')}</div>
    <div class="field"><span class="lbl">Interior</span>${chipRow('int',INTS,draft.int,'co')}</div>
-   <div class="field"><span class="lbl">Body material</span>${chipRow('mat',MATS,draft.mat,'co')}</div>
-   <div class="field"><span class="lbl">Safety equipment</span><div class="chips">${Object.entries(SAFETY).map(([k,o])=>{const lock=!has(o.t);return `<button class="chip" data-a="cs:${k}" aria-pressed="${draft.safety.includes(k)}" ${lock?'disabled':''}>${o.n}${lock?` <span class="lk">${TECH.find(t=>t.id===o.t).y}</span>`:''}</button>`}).join('')}</div></div>
-   <div class="field"><span class="lbl">Paint</span><div class="chips">${PAINTS.map(([n,h])=>`<button class="swatch" style="background:${h}" data-a="paint:${h}" aria-pressed="${draft.color===h}" aria-label="${n}"></button>`).join('')}</div></div>
+   ${tr?'':`<div class="field"><span class="lbl">Body material</span>${chipRow('mat',MATS,draft.mat,'co')}</div>`}
+   <div class="field"><span class="lbl">Headlights</span>${chipRow('hl',HEADL,draft.hl,'co')}</div>
+   <div class="field"><span class="lbl">Safety</span>${eqRow('s')}</div>
+   <div class="field"><span class="lbl">Comfort & tech</span>${eqRow('c')}</div>
+   <div class="field"><span class="lbl">Paint</span><div class="chips">${PAINTS.map(([n,h])=>`<button class="swatch" style="background:${h}" data-a="paint:${h.slice(1)}" aria-pressed="${draft.color===h}" aria-label="${n}"></button>`).join('')}</div>
+     <div class="row"><input type="color" id="cpick" data-i="color" value="${draft.color}" aria-label="Any colour"><input type="text" id="chex" data-i="hex" value="${draft.color}" maxlength="7" style="max-width:130px" aria-label="Hex colour"><small class="muted">Any RGB colour</small></div></div>
+   <div class="field"><label class="lbl" for="ccw">Curb weight override (kg)</label><input type="number" id="ccw" data-i="cw" min="300" step="1" placeholder="Calculated: ${st.wAuto} kg" value="${draft.cw||''}"><small class="muted">Leave blank to use the calculated weight. Allowed range 50–200% of it.</small></div>
    <div class="field"><label class="lbl" for="cprice">Price (leave blank for suggested)</label><input type="number" id="cprice" data-i="cprice" min="1" step="10" value="${draft.price||''}" placeholder="Suggested"></div>
   </div><div class="card sticky" id="cstats">${carStatsHTML()}</div></div></div>
-  <div class="sheet-foot"><span class="muted">Cash <b data-b="money"></b></span><button class="btn primary" data-a="launchCar">Launch model</button></div>`;
+  <div class="sheet-foot"><span class="muted">Cash <b data-b="money"></b></span><button class="btn primary" data-a="launchCar">${tr?'Launch version':'Launch model'}</button></div>`;
 }
-function renderSheet(keepScroll){
+function renderSheet(keep){
   let el=$('#sheet');const top=el?el.scrollTop:0;
   if(!sheet){if(el)el.remove();return}
   if(!el){el=document.createElement('div');el.className='sheet';el.id='sheet';document.body.append(el)}
   el.innerHTML=sheet==='engine'?sheetEngine():sheetCar();
-  if(keepScroll)el.scrollTop=top;
+  if(keep)el.scrollTop=top;
   refreshLive();
 }
-function updateSheetStats(){if(sheet==='engine'){$('#estats').innerHTML=engStatsHTML()}else if(sheet==='car'){$('#cstats').innerHTML=carStatsHTML()}}
+function updateSheetStats(){if(sheet==='engine')$('#estats').innerHTML=engStatsHTML();else if(sheet==='car'){$('#cstats').innerHTML=carStatsHTML()}}
+
+/* ============ SETUP ============ */
+const ERAS=[[1970,'Carburettors and pushrods. A wide-open market.'],[1975,'Oil-crisis years. Small, thrifty cars rule.'],[1980,'Fuel injection and turbos arrive.'],[1985,'Robots, ABS and the first supercars.'],[1990,'Emission limits begin. The SUV boom is coming.'],[1995,'Airbags and twin-turbos are standard kit.'],[2000,'Diesel boom and green buyers. Rivals are strong.'],[2005,'Carbon fibre and dual-clutch gearboxes.'],[2010,'Electric cars become possible. A mature, tough market.'],[2015,'Clean cars surge after the emissions scandal.'],[2020,'Pandemic, chip shortage and the EV race.'],[2025,'Established rivals everywhere.']];
+const eraText=y=>{let t=ERAS[0][1];for(const[a,b]of ERAS)if(y>=a)t=b;return t};
+function setupNote(){const inf=infl(setupYear),pre=TECH.filter(t=>t.y<=setupYear-3).length;
+  return `<b>${eraText(setupYear)}</b> <span class="muted">You start with ${fm(DIFF[setupDiff].cash*inf)}, a rented garage and three staff. ${pre?pre+' older technologies come already researched.':'Nothing is researched yet.'} No engines or cars: you design everything.</span>`}
+function showSetup(cancel){
+  if(S)setSpeed(0);closeModal();
+  let el=$('#setup');if(!el){el=document.createElement('div');el.className='sheet';el.id='setup';document.body.append(el)}
+  const yrs=[];for(let y=1970;y<=2025;y++)yrs.push(y);
+  el.innerHTML=`<div class="sheet-in" style="max-width:560px">
+   <div class="sect-h"><div><small>Motorworks Tycoon</small><h2>Found your company</h2></div>${cancel?'<button class="btn ghost" data-a="cancelSetup">Cancel</button>':''}</div>
+   <div class="card">
+    <div class="field"><label class="lbl" for="setupName">Company name</label><input type="text" id="setupName" maxlength="24" placeholder="Kestrel Motors" autocomplete="off"></div>
+    <div class="field"><label class="lbl" for="setupYear">Start year</label><select id="setupYear" data-i="setupYear">${yrs.map(y=>`<option ${y===setupYear?'selected':''}>${y}</option>`).join('')}</select></div>
+    <div class="chips">${[1970,1980,1990,2000,2010,2020].map(y=>`<button class="chip" data-a="sy:${y}" aria-pressed="${Math.floor(setupYear/10)*10===y}">${y}s</button>`).join('')}</div>
+    <p id="eraNote" style="margin:0">${setupNote()}</p>
+    <div class="field"><span class="lbl">Difficulty</span><div class="chips">${Object.entries(DIFF).map(([k,d])=>`<button class="chip" data-a="sd:${k}" aria-pressed="${setupDiff===k}">${d.n}</button>`).join('')}</div><small id="diffNote" class="muted">${DIFF[setupDiff].d}</small></div>
+    <button class="btn primary" data-a="startGame">Open the garage</button>
+   </div>
+   <div class="card"><h3>Continue from another device</h3><p class="muted" style="margin:0">On your other device, open the menu and tap Copy save code. Paste it here.</p>
+    <textarea id="importCode" rows="3" class="code" placeholder="Paste save code"></textarea>
+    <button class="btn" data-a="importSave">Load save</button><span id="importMsg" class="neg"></span></div>
+  </div>`;
+}
+function beginGame(st){S=st;const el=$('#setup');if(el)el.remove();tab='hq';save();lastSave=S.day;renderTop();renderNav();renderView();setSpeed(1)}
+function exportCode(){return btoa(unescape(encodeURIComponent(JSON.stringify(S))))}
+function importCode(code){try{const st=JSON.parse(decodeURIComponent(escape(atob(code.trim().replace(/\s+/g,'')))));return st&&Array.isArray(st.cars)?migrate(st):null}catch(e){return null}}
 
 /* ============ ACTIONS ============ */
 function reviewCar(c,st){
-  const bs=bestSeg(st,c.body),fr=st.fit[bs],V=segValue(bs,fr),val=V/c.price;
+  const bs=bestSeg(st,c.body),fr=st.fit[bs],V=segValue(bs,fr,c.body),val=V/c.price;
   let score=clamp(fr*9.5+(val-1)*3+1.2,1,10);score=Math.round(score*2)/2;
   const ranked=Object.entries(st.sc).sort((a,b)=>b[1]-a[1]);
-  const good=ranked.slice(0,2).map(([k])=>SCORE_N[k].toLowerCase()), bad=ranked.slice(-2).map(([k])=>SCORE_N[k].toLowerCase());
-  const pub=pick(['Autocar Weekly','Motor Trend Line','Road & Wheel','Gearbox Gazette','The Driving Post']);
+  const good=ranked.slice(0,2).map(([k])=>SCORE_N[k].toLowerCase()),bad=ranked.slice(-2).map(([k])=>SCORE_N[k].toLowerCase());
+  const pub=pick(['Autocar Weekly','Road & Wheel','Gearbox Gazette','The Driving Post','Fleet & Freight']);
   const verdict=score>=8.5?'A new benchmark. Buy one.':score>=7?'A strong contender in its class.':score>=5.5?'Competent, but rivals do it better.':'Hard to recommend at this price.';
   const priceLine=val>1.15?'and it is a bargain for the money':val<.85?'though the price is hard to justify':'and it is fairly priced';
-  return {score,html:`<span class="tag">${pub} · ${SEGS[bs].n} class</span><div class="spread"><h2>${esc(c.name)}</h2><span class="bigscore">${score.toFixed(1)}</span></div>${carSVG(c.body,c.color,c.name)}<p style="margin:0"><b>${verdict}</b> Testers praised its ${good.join(' and ')}, ${priceLine}. Weak points: ${bad.join(' and ')}.</p><p class="muted" style="margin:0">Set a production rate on the Cars tab to put it on sale.</p>`};
+  return {score,html:`<span class="tag">${pub} · ${SEGS[bs].n} class</span><div class="spread"><h2>${esc(fullName(c))}</h2><span class="bigscore">${score.toFixed(1)}</span></div>${carSVG(c.body,c.color,c.mname)}<p style="margin:0"><b>${verdict}</b> Testers praised its ${good.join(' and ')}, ${priceLine}. Weak points: ${bad.join(' and ')}.</p><p class="muted" style="margin:0">Set its production on the Cars tab to put it on sale.</p>`};
 }
 function act(a){
   const [k,x,y]=a.split(':');const inf=S?I():1;
   switch(k){
   case 'tab':tab=x;renderNav();renderView();window.scrollTo(0,0);break;
   case 'speed':setSpeed(+x);break;
-  case 'menu':modal(`<h2>${esc(S.name)}</h2><p class="muted" style="margin:0">Founded ${S.startY||1970} · now ${dateStr(S.day)}. The game saves on this device automatically.</p>
-    <div class="field"><span class="lbl">Move to another device</span><p class="muted" style="margin:0">Copy this code, send it to yourself, then paste it on the other device's start screen under Continue from another device.</p><textarea id="saveCode" rows="3" readonly style="width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:9px;font:inherit;font-size:.75rem">${exportCode()}</textarea><button class="btn" data-a="copyCode">Copy save code</button></div>`,[['Close','close'],['Save now','saveNow'],['New company','newGame',1]]);break;
-  case 'copyCode':{const ta=$('#saveCode');const done=()=>notify('Save code copied.');try{navigator.clipboard.writeText(ta.value).then(done,()=>{ta.select();notify('Code selected. Copy it with your keyboard or long-press.')})}catch(e){ta.select()}break}
-  case 'sy':setupYear=+x;$('#setupYear').value=x;$('#eraNote').innerHTML=setupNote();document.querySelectorAll('[data-a^="sy:"]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.a==='sy:'+x));break;
-  case 'startGame':beginGame(newGame(($('#setupName')||{}).value,setupYear));break;
-  case 'cancelSetup':{const el=$('#setup');if(el)el.remove();setSpeed(S.speed||1);break}
-  case 'importSave':{const st=importCode($('#importCode').value);if(!st){$('#importMsg').textContent='That code could not be read. Copy the whole code and try again.';break}beginGame(st);notify('Save loaded: '+st.name+', '+dateStr(st.day)+'.');break}
+  case 'menu':modal(`<h2>${esc(S.name)}</h2><p class="muted" style="margin:0">${DIFF[S.diff||'easy'].n} difficulty · founded ${S.startY||1970} · now ${dateStr(S.day)}. The game saves on this device automatically.</p>
+    <div class="field"><span class="lbl">Move to another device</span><p class="muted" style="margin:0">Copy this code, send it to yourself, then paste it on the other device's start screen.</p><textarea id="saveCode" rows="3" readonly class="code">${exportCode()}</textarea><button class="btn" data-a="copyCode">Copy save code</button></div>`,[['Close','close'],['Save now','saveNow'],['New company','newGame',1]]);break;
+  case 'copyCode':{const ta=$('#saveCode');try{navigator.clipboard.writeText(ta.value).then(()=>notify('Save code copied.'),()=>{ta.select();notify('Code selected. Copy it with your keyboard or long-press.')})}catch(e){ta.select()}break}
   case 'close':closeModal();break;
   case 'saveNow':save();closeModal();notify('Game saved.');break;
   case 'newGame':showSetup(true);break;
   case 'restart':S.over=true;save();showSetup(false);break;
-  case 'upgrade':{const nx=HQ[S.hq+1];if(nx&&S.money>=nx.cost*inf){S.money-=nx.cost*inf;S.hq++;notify(`${S.name} moves into a ${nx.n}.`,true);renderView()}break}
-  case 'hire':if(staffN()<HQ[S.hq].staff){S.money-=2000*inf;S.staff[x]++;renderView()}break;
+  case 'sy':setupYear=+x;$('#setupYear').value=x;$('#eraNote').innerHTML=setupNote();document.querySelectorAll('[data-a^="sy:"]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.a==='sy:'+x));break;
+  case 'sd':setupDiff=x;$('#diffNote').textContent=DIFF[x].d;$('#eraNote').innerHTML=setupNote();document.querySelectorAll('[data-a^="sd:"]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.a==='sd:'+x));break;
+  case 'startGame':beginGame(newGame(($('#setupName')||{}).value,setupYear,setupDiff));break;
+  case 'cancelSetup':{const el=$('#setup');if(el)el.remove();setSpeed(1);break}
+  case 'importSave':{const st=importCode($('#importCode').value);if(!st){$('#importMsg').textContent='That code could not be read. Copy the whole code and try again.';break}beginGame(st);notify('Save loaded: '+st.name+', '+dateStr(st.day)+'.');break}
+  case 'upgrade':{const nx=HQ[S.hq+1],c=nx&&nx.cost*inf*costMul();if(nx&&S.money>=c){S.money-=c;S.hq++;notify(`${S.name} moves into a ${nx.n}.`,true);renderView()}break}
+  case 'hire':{const c=hireCost(x);if(staffN()<HQ[S.hq].staff&&S.money>=c){S.money-=c;S.staff[x]++;renderView()}break}
   case 'fire':if(S.staff[x]>0){S.staff[x]--;renderView()}break;
-  case 'mkt':{const c=CAMPAIGNS.find(c=>c.id===x);const cost=c.c*inf;if(S.money>=cost){S.money-=cost;S.aware=clamp(S.aware+c.a,0,1);S.mkt=S.mkt.filter(m=>m.until>S.day);S.mkt.push({id:c.id,b:c.b,until:S.day+c.d});notify(`${c.n} launched.`);renderView()}break}
-  case 'research':{const t=TECH.find(t=>t.id===x);if(S.rp>=t.rp&&S.money>=t.c*inf){S.rp-=t.rp;S.money-=t.c*inf;S.tech.push(t.id);notify(`Research complete: ${t.n}.`,true);renderView()}break}
+  case 'mkt':{const c=CAMPAIGNS.find(c=>c.id===x),cost=c.c*inf*costMul();if(S.money>=cost){S.money-=cost;S.aware=clamp(S.aware+c.a,0,1);S.mkt=S.mkt.filter(m=>m.until>S.day);S.mkt.push({id:c.id,b:c.b,until:S.day+c.d});notify(`${c.n} launched.`);renderView()}break}
+  case 'research':{const t=TECH.find(t=>t.id===x),c=t.c*inf*costMul();if(S.rp>=t.rp&&S.money>=c){S.rp-=t.rp;S.money-=c;S.tech.push(t.id);notify(`Research complete: ${t.n}.`,true);renderView()}break}
   case 'newEngine':openEngine();break;
   case 'newCar':if(!S.engines.length){notify('Design an engine first.');tab='eng';renderNav();renderView();break}openCar();break;
+  case 'addTrim':openCar(x);break;
   case 'closeSheet':sheet=null;renderSheet();break;
-  case 'eo':{draft[x]=y;if(y==='ev'){}renderSheet(true);break}
-  case 'co':draft[x]=y;renderSheet(true);break;
-  case 'cs':draft.safety=draft.safety.includes(x)?draft.safety.filter(s=>s!==x):[...draft.safety,x];renderSheet(true);break;
-  case 'paint':draft.color=a.slice(6);renderSheet(true);break;
-  case 'buildEngine':{const s=engDraftStats(),dev=(40e3+s.cost*15)*inf;if(S.money<dev){notify(`You need ${fm(dev)} to develop this engine.`);break}
-    S.money-=dev;const e={...draft,id:'e'+(S.nid++),year:Math.floor(yearF())};S.engines.push(e);sheet=null;renderSheet();notify(`${e.name} is ready: ${s.hp} hp.`,true);tab='eng';renderNav();renderView();break}
-  case 'launchCar':{const dev=(120e3+BODIES[draft.body].cost*40)*inf;if(S.money<dev){notify(`You need ${fm(dev)} to develop this model.`);break}
-    const c={...draftCar(),id:'c'+(S.nid++),prod:0,inv:0,sold:0,rate:0,dem:0,frac:0};const st=carStats(c);c.price=draft.price?draft.price/inf:suggestPrice(st,c.body);
+  case 'eo':{draft[x]=y;if(x==='fuel'&&y==='diesel'){draft.bore=Math.max(draft.bore,80);draft.stroke=Math.max(draft.stroke,86)}fixEngineDraft();renderSheet(true);break}
+  case 'co':{draft[x]=y;if(x==='dt'&&draft.trim===draft.autoTrim)draft.trim=draft.autoTrim=suggestTrim(draft.eng,draft.dt);if(x==='body'&&['van','ltruck','htruck','pickup'].includes(y)&&has('leaf')&&draft.susp==='std')draft.susp='leaf';renderSheet(true);break}
+  case 'cs':draft.equip=draft.equip.includes(x)?draft.equip.filter(s=>s!==x):[...draft.equip,x];renderSheet(true);break;
+  case 'lsd':draft.lsd=!draft.lsd;renderSheet(true);break;
+  case 'paint':draft.color='#'+x;renderSheet(true);break;
+  case 'buildEngine':{const s=engDraftStats(),dev=engDev(s);if(S.money<dev){notify(`You need ${fm(dev)} to develop this engine.`);break}
+    S.money-=dev;const e={...draft,id:'e'+(S.nid++),year:Math.floor(yearF())};S.engines.push(e);sheet=null;renderSheet();notify(`${e.name} is ready: ${fn(s.hp)} hp.`,true);tab='eng';renderNav();renderView();break}
+  case 'launchCar':{const dev=carDev();if(S.money<dev){notify(`You need ${fm(dev)} to develop this.`);break}
+    const id='c'+(S.nid++);const c={...draftCar(),id,model:draft.mode==='trim'?draft.model:id,prod:0,inv:0,sold:0,rate:0,dem:0,frac:0};delete c.mode;delete c.name;delete c.autoTrim;
+    const st=carStats(c);c.price=draft.price?draft.price/inf:suggestPrice(st,c.body);
     const rv=reviewCar(c,st);c.review=rv.score;S.money-=dev;S.cars.push(c);sheet=null;renderSheet();tab='cars';renderNav();renderView();
-    notify(`The ${c.name} launches to a ${rv.score.toFixed(1)}/10 review.`,true);modal(rv.html,[['Go to production','close',1]]);break}
-  case 'retire':{const c=carById(x);const st=carStats(c);modal(`<h3>Retire the ${esc(c.name)}?</h3><p style="margin:0">Production stops and the ${fn(c.inv)} cars in stock are sold to fleet buyers for ${fm(c.inv*st.cost*inf*.5)}.</p>`,[['Keep it','close'],['Retire model','doRetire:'+x,1]]);break}
-  case 'doRetire':{const c=carById(x);const st=carStats(c);S.money+=c.inv*st.cost*inf*.5;S.cars=S.cars.filter(z=>z.id!==x);closeModal();renderView();break}
-  case 'detail':{const c=carById(x),st=carStats(c),E=engById(c.eng);modal(`<span class="tag">${BODIES[c.body].n} · ${Math.floor(c.year)}</span><h2>${esc(c.name)}</h2>${carSVG(c.body,c.color,c.name)}<div class="dl"><div><small>Engine</small><b>${esc(E.name)}</b></div><div><small>Power</small><b>${st.hp} hp</b></div><div><small>0–100</small><b>${st.t.toFixed(1)} s</b></div><div><small>Top speed</small><b>${st.top} km/h</b></div><div><small>Fuel</small><b>${st.ev?'Electric':st.l100.toFixed(1)+' L/100'}</b></div><div><small>CO₂</small><b>${st.emis} g/km</b></div></div>${statRows(st.sc)}<small>Scores are rated against cars of ${new Date(DAY0+S.day*864e5).getUTCFullYear()}. Older designs slip as rivals improve.</small>`,[['Close','close',1]]);break}
+    notify(`The ${fullName(c)} launches to a ${rv.score.toFixed(1)}/10 review.`,true);modal(rv.html,[['Go to production','close',1]]);break}
+  case 'retire':{const c=carById(x),st=carStats(c);modal(`<h3>Retire the ${esc(fullName(c))}?</h3><p style="margin:0">Production stops and the ${fn(c.inv)} cars in stock are sold to fleet buyers for ${fm(c.inv*st.cost*inf*.5)}.</p>`,[['Keep it','close'],['Retire version','doRetire:'+x,1]]);break}
+  case 'doRetire':{const c=carById(x),st=carStats(c);S.money+=c.inv*st.cost*inf*.5;S.cars=S.cars.filter(z=>z.id!==x);closeModal();renderView();break}
+  case 'detail':{const c=carById(x),st=carStats(c),E=engById(c.eng);
+    const eq=c.equip.map(k=>EQUIP[k]&&EQUIP[k].n).filter(Boolean);
+    modal(`<span class="tag">${BODIES[c.body].n} · ${Math.floor(c.year)}</span><h2>${esc(fullName(c))}</h2>${carSVG(c.body,c.color,c.mname)}
+    <div class="dl"><div><small>Engine</small><b>${esc(E.name)}</b></div><div><small>Power</small><b>${fn(st.hp)} hp</b></div><div><small>0–100</small><b>${st.t.toFixed(1)} s</b></div><div><small>Top speed</small><b>${st.top} km/h</b></div><div><small>${st.ev?'Energy':'Fuel'}</small><b>${st.ev?st.kwh.toFixed(1)+' kWh/100':st.l100.toFixed(1)+' L/100'}</b></div><div><small>Weight</small><b>${fn(st.w)} kg</b></div><div><small>CO₂</small><b>${st.emis} g/km</b></div></div>
+    <small>${esc(engDesc(E))} · ${GEARS[c.gb].n} · ${DRIVES[c.dt].n}${c.lsd?' with LSD':''} · ${SUSP[c.susp].n} suspension · ${INTS[c.int].n} interior · ${HEADL[c.hl].n} lights${eq.length?' · '+eq.join(', '):''}</small>
+    ${statRows(st.sc)}<small>Scores are rated against vehicles of ${curYear()}. Older designs slip as rivals improve.</small>`,[['Close','close',1]]);break}
   case 'race':runRace(x);break;
   }
 }
 function runRace(id){
   const r=RACES.find(r=>r.id===id),inf=I(),sel=$('#rc-'+id);if(!sel)return;
   const c=carById(sel.value),st=carStats(c);S.money-=r.fee*inf;S.races[id]=S.day+90;
-  const y=yearF(),ex=expIdx(y)*r.tier;
-  const field=[{n:c.name,me:1,col:c.color,sc:raceIdx(c,r)*rnd(.95,1.05)}];
-  const names=RIVALS.slice().sort(()=>Math.random()-.5).slice(0,7);
-  names.forEach((n,i)=>field.push({n,col:S.comp[i%5].c,sc:ex*rnd(.86,1.12)}));
+  const ex=expIdx(yearF())*r.tier;
+  const field=[{n:fullName(c),me:1,col:c.color,sc:raceIdx(c,r)*rnd(.95,1.05)}];
+  RIVALS.slice().sort(()=>Math.random()-.5).slice(0,7).forEach((n,i)=>field.push({n,col:S.comp[i%S.comp.length].c,sc:ex*rnd(.86,1.12)}));
   if(r.rel)field.forEach(f=>{const rel=f.me?st.rel:80;if(Math.random()<(1-rel/100)*.6)f.dnf=1});
-  const order=field.slice();
-  order.sort((a,b)=>(a.dnf?1:0)-(b.dnf?1:0)||b.sc-a.sc);
-  const pos=order.findIndex(f=>f.me)+1, me=field[0];
-  const best=Math.max(...field.filter(f=>!f.dnf).map(f=>f.sc));
-  const lanes=field.map(f=>`<div class="lane ${f.me?'me':''}"><div class="fin"></div><div class="rc" data-sc="${f.dnf?0:f.sc}" style="transition-duration:${f.dnf?2:(2.6*Math.pow(best/f.sc,5)).toFixed(2)}s"><i style="background:${f.col}"></i>${esc(f.n)}</div></div>`).join('');
+  if(st.rel<30&&Math.random()<.5)field[0].dnf=1;
+  const order=field.slice().sort((a,b)=>(a.dnf?1:0)-(b.dnf?1:0)||b.sc-a.sc);
+  const pos=order.findIndex(f=>f.me)+1,me=field[0];
+  const fin=field.filter(f=>!f.dnf),best=fin.length?Math.max(...fin.map(f=>f.sc)):1;
+  const dur=f=>f.dnf?2:2.6*Math.pow(best/f.sc,5);
+  const lanes=field.map(f=>`<div class="lane ${f.me?'me':''}"><div class="fin"></div><div class="rc" data-sc="${f.dnf?0:f.sc}" style="transition-duration:${dur(f).toFixed(2)}s"><i style="background:${f.col}"></i>${esc(f.n)}</div></div>`).join('');
   modal(`<span class="tag">${r.n} · ${dateStr(S.day)}</span><h2>Lights out</h2><div class="track" id="trk">${lanes}</div><div id="rres" class="muted">Racing…</div>`,[]);
   requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelectorAll('#trk .rc').forEach(el=>{el.style.left=el.dataset.sc==='0'?'38%':'calc(100% - 150px)'})));
   let prize=0,rep=0;
   if(!me.dnf){if(pos===1){prize=r.prize*inf;rep=4}else if(pos===2){prize=r.prize*inf*.45;rep=2}else if(pos===3){prize=r.prize*inf*.2;rep=1}else if(pos>6)rep=-.5}
-  S.money+=prize;S.rep=clamp(S.rep+rep*(r.tier),0,100);S.aware=clamp(S.aware+(pos<=3?.006*r.tier:.001),0,1);
-  const msg=me.dnf?`The ${c.name} retired with mechanical failure.`:`The ${c.name} finished P${pos} of 8${prize?` and won ${fm(prize)}`:''}.`;
+  S.money+=prize;S.rep=clamp(S.rep+rep*r.tier,0,100);S.aware=clamp(S.aware+(pos<=3?.006*r.tier:.001),0,1);
+  const msg=me.dnf?`The ${fullName(c)} retired with mechanical failure.`:`The ${fullName(c)} finished P${pos} of 8${prize?` and won ${fm(prize)}`:''}.`;
   setTimeout(()=>{const res=$('#rres');if(!res)return;res.innerHTML=`<h3>${me.dnf?'DNF':'P'+pos}</h3><p style="margin:4px 0 0">${msg}${rep>0?' Reputation up.':''}</p><ol style="margin:8px 0 0;padding-left:20px">${order.map(f=>`<li>${f.me?'<b>':''}${esc(f.n)}${f.me?'</b>':''}${f.dnf?' · DNF':''}</li>`).join('')}</ol>`;
     $('.modal').insertAdjacentHTML('beforeend','<div class="row" style="justify-content:flex-end"><button class="btn primary" data-a="close">Back to the paddock</button></div>');
-    notify(r.n+': '+msg,true);if(tab==='race')renderView();},Math.min(6000,2700+Math.max(...field.filter(f=>!f.dnf).map(f=>2600*Math.pow(best/f.sc,5)))));
+    notify(r.n+': '+msg,true);if(tab==='race')renderView()},Math.min(6000,2700+Math.max(0,...fin.map(f=>dur(f)*1000))));
 }
-function gameOver(){modal(`<span class="tag bad">${dateStr(S.day)}</span><h2>Bankrupt</h2><p>The banks have called in ${esc(S.name)}'s loans. You sold ${fn(S.cars.reduce((a,c)=>a+c.sold,0))} cars before the doors closed.</p>`,[['Start a new company','restart',1]])}
+function gameOver(){modal(`<span class="tag bad">${dateStr(S.day)}</span><h2>Bankrupt</h2><p>The banks have called in ${esc(S.name)}'s loans. You sold ${fn(S.cars.reduce((a,c)=>a+c.sold,0))} vehicles before the doors closed.</p>`,[['Start a new company','restart',1]])}
 
 /* ============ EVENTS ============ */
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t||t.disabled)return;act(t.dataset.a)});
 document.addEventListener('input',e=>{
   const t=e.target,k=t.dataset&&t.dataset.i;if(!k)return;
   const [a,id]=k.split(':');
-  if(a==='prod'){const c=carById(id);c.prod=+t.value;$('#pv-'+id).textContent=c.prod}
-  else if(a==='dname'){draft.name=t.value||'Untitled'}
+  if(a==='prod'||a==='prodn'){const c=carById(id);const cap=HQ[S.hq].cap;let v=Math.round(+t.value||0);if(a==='prodn'&&t.value==='')return;v=clamp(v,0,cap);c.prod=v;
+    const sl=$('#prod-'+id),nb=$('#pn-'+id);if(a==='prod'&&nb)nb.value=v;if(a==='prodn'&&sl)sl.value=v;refreshLive()}
+  else if(a==='dname')draft.name=t.value||'Untitled';
+  else if(a==='mname')draft.mname=t.value||'Untitled';
+  else if(a==='trim')draft.trim=t.value;
   else if(a==='bore'||a==='stroke'||a==='evHp'){draft[a]=+t.value;const lab=$(a==='evHp'?'#evv':'#'+a+'v');if(lab)lab.textContent=a==='evHp'?t.value+' hp':t.value+' mm';updateSheetStats()}
-  else if(a==='setupYear'){setupYear=+t.value;$('#eraNote').innerHTML=setupNote();document.querySelectorAll('[data-a^="sy:"]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.a.slice(3)===Math.floor(setupYear/10)*10))}
+  else if(a==='turbos'){draft.turbos=+t.value;$('#turbosv').textContent=draft.turbos||'None';const bv=$('#boostv');if(bv)bv.textContent=draft.turbos?draft.boost.toFixed(1)+' bar':'no turbos';updateSheetStats()}
+  else if(a==='boost'){draft.boost=+t.value;$('#boostv').textContent=draft.turbos?draft.boost.toFixed(1)+' bar':'no turbos';updateSheetStats()}
+  else if(a==='ewo'){draft.wo=+t.value||null;updateSheetStats()}
+  else if(a==='cw'){draft.cw=+t.value||null;updateSheetStats()}
+  else if(a==='color'){draft.color=t.value;const h=$('#chex');if(h)h.value=t.value;document.querySelectorAll('.swatch').forEach(s=>s.setAttribute('aria-pressed','false'));updateSheetStats()}
+  else if(a==='hex'){if(/^#[0-9a-fA-F]{6}$/.test(t.value)){draft.color=t.value.toLowerCase();const p=$('#cpick');if(p)p.value=draft.color;updateSheetStats()}}
   else if(a==='cprice'){draft.price=+t.value||null;updateSheetStats()}
+  else if(a==='setupYear'){setupYear=+t.value;$('#eraNote').innerHTML=setupNote();document.querySelectorAll('[data-a^="sy:"]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.a.slice(3)===Math.floor(setupYear/10)*10))}
 });
 document.addEventListener('change',e=>{
   const t=e.target,k=t.dataset&&t.dataset.i;if(!k)return;const [a,id]=k.split(':');
   if(a==='price'){const c=carById(id);const v=+t.value;if(v>0)c.price=v/I();renderView()}
-  else if(a==='ceng'){draft.eng=t.value;const ev=LAYOUTS[engById(t.value).layout].ev;if(ev)draft.gb='ev1';else if(GEARS[draft.gb].ev)draft.gb=has('m5')?'m5':'m4';renderSheet(true)}
+  else if(a==='prodn'){const c=carById(id);t.value=c.prod}
+  else if(a==='ceng'){draft.eng=t.value;const ev=LAYOUTS[engById(t.value).layout].ev;if(ev)draft.gb='ev1';else if(GEARS[draft.gb].ev)draft.gb=has('m5')?'m5':'m4';if(draft.trim===draft.autoTrim)draft.trim=draft.autoTrim=suggestTrim(draft.eng,draft.dt);renderSheet(true)}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('#modal'))closeModal();else if(sheet){sheet=null;renderSheet()}}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 /* ============ BOOT ============ */
 function start(data){
-  S=(data&&data.S)||load();
+  S=migrate((data&&data.S)||null)||load();
   if(!S||S.over){S=null;showSetup(false);return}
   tab=(data&&data.tab)||'hq';
   renderTop();renderNav();renderView();setSpeed(S.speed??1);
