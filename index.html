@@ -450,7 +450,8 @@ function modSeg(s){return activeMods().reduce((a,m)=>a*(m.all||1)*((m.seg&&m.seg
 const modCost=()=>activeMods().reduce((a,m)=>a*(m.cost||1),1);
 const modProd=()=>activeMods().reduce((a,m)=>a*(m.prod||1),1);
 const mktBoost=()=>S.mkt.filter(m=>m.until>S.day).reduce((a,m)=>Math.max(a,m.b),1);
-const creditLimit=()=>250e3*I()*S.hq;
+/* bank credit: a base line plus ~15 days of working capital for the production you've ordered */
+function creditLimit(){const inf=I();let wc=0;for(const c of S.cars)if(c.prod)wc+=c.prod*carStats(c).cost*inf;return 250e3*inf*S.hq+Math.min(wc,HQ[S.hq].cap*30e3*inf)*15}
 const repF=()=>.55+S.rep/100*.9;
 
 /* market solve for one day; returns {dem, compU, tot} */
@@ -477,15 +478,20 @@ function simDay(){
   const y=yearF(), inf=infl(y), stats={};
   S.cars.forEach(c=>stats[c.id]=carStats(c,y));
   const cap=Math.floor(HQ[S.hq].cap*modProd()), credit=creditLimit();
-  let used=0,prodCost=0;
+  let used=0,prodCost=0,cashBlocked=false;
+  const want=S.cars.reduce((a,c)=>a+(c.prod||0),0), scale=want>cap?cap/want:1;
   for(const c of S.cars){
+    c.built=0;c.block=null;
     if(!c.prod)continue;
     const unit=stats[c.id].cost*inf*modCost();
-    let n=Math.min(c.prod,cap-used);
-    if(S.money-prodCost-n*unit<-credit){n=Math.max(0,Math.floor((S.money-prodCost+credit)/unit));if(!S.credWarn){S.credWarn=1;notify('Credit line exhausted. Production is paused until cash recovers.')}}
-    else S.credWarn=0;
-    c.inv+=n;used+=n;prodCost+=n*unit;
+    let n=Math.min(Math.floor(c.prod*scale+(c.pfrac||0)),cap-used);
+    c.pfrac=scale<1?((c.pfrac||0)+c.prod*scale)%1:0;
+    if(n<c.prod)c.block='cap';
+    if(S.money-prodCost-n*unit<-credit){n=Math.max(0,Math.floor((S.money-prodCost+credit)/unit));c.block='cash';cashBlocked=true}
+    c.inv+=n;c.built=n;used+=n;prodCost+=n*unit;
   }
+  if(cashBlocked&&!S.credWarn){S.credWarn=1;notify('Out of cash and credit. Factories are building less until money comes in. Lower production or raise prices.',true)}
+  if(!cashBlocked)S.credWarn=0;
   S.used=used;
   const mk=solveMarket(y,stats), lim=emisLimit(y);
   let rev=0,sold=0,fines=0;
@@ -616,8 +622,10 @@ function liveVal(k){
     case 'rep':return Math.round(S.rep)+'/100';
     case 'aware':return pct(S.aware);
     case 'share':return pct(share());
+    case 'want':return fn(S.cars.reduce((a,c)=>a+(c.prod||0),0));
     case 'ytd':return fn(S.yr.me);
     case 'cap':return fn(S.used||0)+' / '+fn(HQ[S.hq].cap);
+    case 'built':{const c=carById(id);return c?fn(c.built||0):''}
     case 'inv':{const c=carById(id);return c?fn(c.inv):''}
     case 'rate':{const c=carById(id);return c?fn(c.rate):''}
     case 'dem':{const c=carById(id);return c?fn(c.dem):''}
@@ -630,7 +638,7 @@ function refreshLive(){
   const pl=$('[data-b="pl"]');if(pl)pl.className=monthPL()>=0?'pos':'neg';
   const m=$('[data-b="money"]');if(m)m.className=S.money>=0?'':'neg';
   const cb=$('#capbar');if(cb)cb.style.width=clamp((S.used||0)/HQ[S.hq].cap*100,0,100)+'%';
-  document.querySelectorAll('[data-stock]').forEach(el=>{const c=carById(el.dataset.stock);if(!c)return;const st=c.prod===0&&c.inv===0?['Not in production','']:c.inv>Math.max(60,c.rate*45)?['Overstocked','bad']:c.inv<1&&c.dem>c.rate+1?['Sold out','y']:['Selling','good'];el.className='tag '+st[1];el.textContent=st[0]});
+  document.querySelectorAll('[data-stock]').forEach(el=>{const c=carById(el.dataset.stock);if(!c)return;const st=c.prod===0&&c.inv===0?['Not in production','']:c.block==='cash'&&c.inv<1?['No cash to build','bad']:c.block==='cap'&&c.inv<1?['Factory full','bad']:c.inv>Math.max(60,c.rate*45)?['Overstocked','bad']:c.inv<1&&c.dem>c.rate+1?['Sold out','y']:['Selling','good'];el.className='tag '+st[1];el.textContent=st[0]});
 }
 
 /* ============ RENDER: VIEWS ============ */
@@ -644,6 +652,8 @@ function coachTip(){
   if(!S.engines.length)return 'Every car needs an engine. Open Engines and design your first one.';
   if(!S.cars.length)return 'Your engine is ready. Open Cars and design your first model around it.';
   if(!S.cars.some(c=>c.prod>0))return 'Your model is ready. On the Cars tab, drag its production slider to start building and selling.';
+  if(S.cars.some(c=>c.block==='cash'))return 'You are out of cash and credit, so the factory is building less. Lower production on weak sellers or raise prices.';
+  if(S.cars.some(c=>c.block==='cap'))return `You ordered more cars than your ${HQ[S.hq].n} can build, so every model gets a share. Lower some sliders or upgrade HQ.`;
   const over=S.cars.find(c=>c.inv>Math.max(150,c.rate*60));
   if(over)return `Unsold ${over.name}s are piling up. Cut its production or lower the price.`;
   if(nxt&&S.money>nxt.cost*inf*1.25)return `You can afford the ${nxt.n}. Upgrade to raise capacity to ${fn(nxt.cap)} cars a day.`;
@@ -710,7 +720,7 @@ function carCard(c){
   return `<article class="card carcard">
   <div class="spread"><div><small>${BODIES[c.body].n} · ${Math.floor(c.year)} · review ${c.review.toFixed(1)}/10</small><h3>${esc(c.name)}</h3></div><span data-stock="${c.id}" class="tag"></span></div>
   <div class="pic">${carSVG(c.body,c.color,c.name)}</div>
-  <div class="dl"><div><small>In stock</small><b data-b="inv:${c.id}"></b></div><div><small>Sold / day</small><b data-b="rate:${c.id}"></b></div><div><small>Demand / day</small><b data-b="dem:${c.id}"></b></div><div><small>Margin / car</small><b class="${margin>=0?'pos':'neg'}">${fm(margin)}</b></div></div>
+  <div class="dl"><div><small>Built / day</small><b data-b="built:${c.id}"></b></div><div><small>In stock</small><b data-b="inv:${c.id}"></b></div><div><small>Sold / day</small><b data-b="rate:${c.id}"></b></div><div><small>Demand / day</small><b data-b="dem:${c.id}"></b></div><div><small>Margin / car</small><b class="${margin>=0?'pos':'neg'}">${fm(margin)}</b></div></div>
   ${lim&&st.emis>lim?`<span class="tag bad">${st.emis} g/km is over the ${Math.round(lim)} g/km limit</span>`:''}
   <div class="field"><div class="spread"><label class="lbl" for="prod-${c.id}">Production</label><b><span id="pv-${c.id}">${c.prod}</span> / day</b></div><input type="range" id="prod-${c.id}" data-i="prod:${c.id}" min="0" max="${cap}" step="1" value="${Math.min(c.prod,cap)}"></div>
   <div class="row"><div class="field" style="flex:1"><label class="lbl" for="price-${c.id}">Price (follows inflation)</label><input type="number" id="price-${c.id}" data-i="price:${c.id}" min="1" step="10" value="${Math.round(c.price*inf/10)*10}"></div><div class="field" style="flex:1"><small>Build cost</small><b style="padding:10px 0">${fm(unit)}</b></div></div>
@@ -718,7 +728,7 @@ function carCard(c){
   </article>`;
 }
 function viewCars(){
-  return `<div class="sect-h"><div><small>Capacity ${fn(HQ[S.hq].cap)} cars/day shared across models</small><h2>Cars</h2></div><button class="btn primary" data-a="newCar">Design car</button></div>
+  return `<div class="sect-h"><div><small>Factory: <span data-b="want"></span> ordered · ${fn(HQ[S.hq].cap)} cars/day capacity, shared</small><h2>Cars</h2></div><button class="btn primary" data-a="newCar">Design car</button></div>
   ${S.cars.length?`<div class="grid">${S.cars.slice().reverse().map(carCard).join('')}</div>`:`<div class="card"><h3>No models yet</h3><p class="muted" style="margin:0">${S.engines.length?'Choose a body, fit one of your engines and set a price.':'You need an engine first.'}</p><button class="btn primary" data-a="${S.engines.length?'newCar':'tab:eng'}">${S.engines.length?'Design your first car':'Go to Engines'}</button></div>`}`;
 }
 function viewMarket(){
