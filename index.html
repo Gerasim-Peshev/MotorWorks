@@ -38,7 +38,7 @@
   --accent:#f5c22b; --on-accent:#16140a; --green:#5fbf88; --good:#5fbf88; --bad:#ee6a52; --warn:#e2a93a;
   --glass:#3b5463; --tyre:#050606; --arch:#000; --rim:#7d878a; --shadow:rgba(0,0,0,.45); color-scheme:dark}
 *{box-sizing:border-box}
-html,body{height:100%}
+html{height:100%}body{min-height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent;font-variant-numeric:tabular-nums}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
 button,input,select{font:inherit;color:inherit}
@@ -52,8 +52,10 @@ small,.lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:
 
 /* top bar */
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:2px solid var(--ink);
-  display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding-block:8px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding-block:8px;transition:transform .25s ease;will-change:transform;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top.hid{transform:translateY(calc(-100% - env(safe-area-inset-top,0px) - 4px))}
+@media (prefers-reduced-motion:reduce){.top{transition:none}}
 .brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 auto}
 .brand b{font-family:var(--display);font-weight:900;font-size:1.25rem;text-transform:uppercase;display:block;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .logo{width:34px;height:34px;flex:none}
@@ -1384,7 +1386,7 @@ function act(a){
   const [k,x,y]=a.split(':');const inf=S?I():1;
   switch(k){
   case 'lang':switchLang();break;
-  case 'tab':tab=x;renderNav();renderView();window.scrollTo(0,0);break;
+  case 'tab':tab=x;renderNav();renderView();window.scrollTo(0,0);lastScrollY=0;showHeader();break;
   case 'speed':setSpeed(+x);break;
   case 'menu':modal(`<h2>${esc(S.name)}</h2><p class="muted" style="margin:0">${tx('{diff} difficulty · founded {y} · now {d}. The game saves on this device automatically.',{diff:[DIFF[S.diff||'easy'].n],y:S.startY||1970,d:dateStr(S.day)})}</p>
     <div class="field"><span class="lbl">${tx('Move to another device')}</span><p class="muted" style="margin:0">${tx('Copy this code, send it to yourself, then paste it on the other device’s start screen.')}</p><textarea id="saveCode" rows="3" readonly class="code">${exportCode()}</textarea><button class="btn" data-a="copyCode">${tx('Copy save code')}</button></div>`,[[tx('Close'),'close'],[tx('Save now'),'saveNow'],[tx('New company'),'newGame',1]]);break;
@@ -1484,6 +1486,18 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('#modal'))closeModal();else if(sheet){sheet=null;renderSheet()}}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
+
+/* auto-hide header: hides when scrolling down, comes back when you swipe down (scroll up) */
+let lastScrollY=0;
+function showHeader(){const t=$('#top');if(t)t.classList.remove('hid')}
+window.addEventListener('scroll',()=>{
+  const y=Math.max(0,window.scrollY),t=$('#top');if(!t)return;
+  const d=y-lastScrollY;
+  if(y<20||d<-6)t.classList.remove('hid');
+  else if(d>8&&y>t.offsetHeight)t.classList.add('hid');
+  if(Math.abs(d)>6||y<20)lastScrollY=y;
+},{passive:true});
+document.addEventListener('focusin',e=>{if(e.target.closest&&e.target.closest('#top'))showHeader()});
 
 /* ============ BOOT ============ */
 function start(data){
