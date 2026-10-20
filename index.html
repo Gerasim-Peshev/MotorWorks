@@ -121,7 +121,7 @@ small,.lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:
 .tag.good{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
 .tag.bad{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
 .tag.y{background:var(--accent);color:var(--on-accent)}
-input[type=range]{width:100%;accent-color:var(--green);height:32px}
+input[type=range]{width:100%;accent-color:var(--green);height:32px;touch-action:pan-y}
 input[type=text],input[type=number],select{background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:9px 11px;min-height:44px;width:100%}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
 .carpic{width:100%;max-width:100%;height:auto;display:block}
@@ -714,6 +714,10 @@ const BG={
 /* racing */
 'Lights out':'Старт!','Racing…':'Състезанието тече…','The {name} retired with mechanical failure.':'{name} отпадна с механична повреда.','The {name} finished P{pos} of 8 and won {v}.':'{name} завърши {pos}-и от 8 и спечели {v}.','The {name} finished P{pos} of 8.':'{name} завърши {pos}-и от 8.',
 'Reputation up.':'Репутацията расте.','Back to the paddock':'Обратно в бокса','Bankrupt':'Фалит','The banks have called in {name}’s loans. You sold {n} vehicles before the doors closed.':'Банките поискаха кредитите на {name}. Продадохте {n} коли, преди да затворите.','Start a new company':'Нова компания',
+'Bank warning: you are over your credit line. Get back above {v} within {n} days or the bank will close the company.':'Предупреждение от банката: надвишили сте кредитната си линия. Върнете се над {v} до {n} дни или банката ще закрие компанията.',
+'Drag the slider handle or type a number to change production.':'Плъзнете плъзгача или въведете число, за да промените производството.',
+'Match demand':'Според търсенето','{name}: production set to {n}/day.':'{name}: производство {n}/ден.',
+'You are over your credit line. Cut production of unsold cars and sell stock. {n} days left before the bank closes the company.':'Надвишили сте кредитната линия. Намалете производството на непродадените коли и разпродайте склада. Остават {n} дни, преди банката да закрие компанията.',
 };
 
 /* ============ LANGUAGE ============ */
@@ -859,7 +863,7 @@ function modSeg(s){return activeMods().reduce((a,m)=>a*(m.all||1)*((m.seg&&m.seg
 const modCost=()=>activeMods().reduce((a,m)=>a*(m.cost||1),1);
 const modProd=()=>activeMods().reduce((a,m)=>a*(m.prod||1),1);
 const mktBoost=()=>S.mkt.filter(m=>m.until>S.day).reduce((a,m)=>Math.max(a,m.b),1);
-function creditLimit(){const inf=I();let wc=0;for(const c of S.cars)if(c.prod)wc+=c.prod*carStats(c).cost*inf;return 250e3*inf*S.hq+Math.min(wc,HQ[S.hq].cap*30e3*inf)*15}
+function creditLimit(){return 250e3*I()*S.hq+(S.revAvg||0)*45}
 const repF=()=>.55+S.rep/100*.9;
 function solveMarket(y,stats){
   const dem={};S.cars.forEach(c=>dem[c.id]=0);
@@ -915,6 +919,7 @@ function simDay(){
   const fixed=HQ[S.hq].up*inf+staffN()*55*inf,interest=S.money<0?-S.money*.0003:0;
   const profit=rev-prodCost-fixed-interest-fines;
   S.money+=profit;S.pl.push(profit);if(S.pl.length>30)S.pl.shift();
+  S.revAvg=(S.revAvg||0)*.97+rev*.03;
   S.rp+=(.2+S.staff.eng*.2)*rpMul();
   S.aware=clamp(S.aware+.000004*Math.sqrt(sold)+S.staff.mkt*.00004-(S.aware-.03)*.0004,0,1);
   const act=S.cars.filter(c=>c.prod>0||c.inv>0);
@@ -925,7 +930,11 @@ function simDay(){
   const t=dateOf(S.day);
   checkEvents();
   if(t.getUTCMonth()!==pm){S.hist.push(S.money);if(S.hist.length>120)S.hist.shift();if(t.getUTCMonth()===0)yearEnd(t.getUTCFullYear()-1);monthly=true}
-  if(S.money<-credit*1.6&&!S.over){S.over=true;setSpeed(0);gameOver()}
+  const lim2=creditLimit();
+  if(S.money<-lim2){S.debtDays=(S.debtDays||0)+1;
+    if(S.debtDays===1||S.debtDays%15===0)news('Bank warning: you are over your credit line. Get back above {v} within {n} days or the bank will close the company.',{v:fm(-lim2),n:60-S.debtDays});
+    if(S.debtDays>=60&&!S.over){S.over=true;setSpeed(0);gameOver()}}
+  else S.debtDays=0;
 }
 function yearEnd(yr){
   const tot=S.yr.me+S.yr.comp.reduce((a,b)=>a+b,0);
@@ -1083,6 +1092,7 @@ function coachTip(){
   if(!S.engines.length)return tx('Every car needs an engine. Open Engines and design your first one.');
   if(!S.cars.length)return tx('Your engine is ready. Open Cars and design your first model around it.');
   if(!S.cars.some(c=>c.prod>0))return tx('Your model is ready. On the Cars tab, set its production to start building and selling.');
+  if(S.debtDays>0)return tx('You are over your credit line. Cut production of unsold cars and sell stock. {n} days left before the bank closes the company.',{n:60-S.debtDays});
   if(S.cars.some(c=>c.block==='cash'))return tx('You are out of cash and credit, so the factory is building less. Lower production on weak sellers or raise prices.');
   if(S.cars.some(c=>c.block==='cap'))return tx('You ordered more cars than your {hq} can build, so every version gets a share. Lower some orders or upgrade HQ.',{hq:[HQ[S.hq].n]});
   const over=S.cars.find(c=>c.inv>Math.max(150,c.rate*60));
@@ -1150,7 +1160,7 @@ function trimBlock(c){
   ${lim&&st.emis>lim?`<span class="tag bad">${tx('{v} g/km is over the {lim} g/km limit',{v:st.emis,lim:Math.round(lim)})}</span>`:''}
   <div class="field"><div class="spread"><label class="lbl" for="pn-${c.id}">${tx('Production per day')}</label><input type="number" inputmode="numeric" class="num" id="pn-${c.id}" data-i="prodn:${c.id}" min="0" max="${cap}" value="${Math.min(c.prod,cap)}"></div><input type="range" id="prod-${c.id}" data-i="prod:${c.id}" min="0" max="${cap}" step="1" value="${Math.min(c.prod,cap)}" aria-label="${tx('Production per day')}"></div>
   <div class="row"><div class="field" style="flex:1"><label class="lbl" for="price-${c.id}">${tx('Price (follows inflation)')}</label><input type="number" id="price-${c.id}" data-i="price:${c.id}" min="1" step="10" value="${Math.round(c.price*inf/10)*10}"></div><div class="field" style="flex:1"><small>${tx('Build cost')}</small><b style="padding:10px 0">${fm(unit)}</b></div></div>
-  <div class="row"><button class="btn sm ghost" data-a="detail:${c.id}">${tx('Specs')}</button><button class="btn sm ghost" data-a="retire:${c.id}">${tx('Retire')}</button><small style="margin-left:auto">${tx('Sold total')} <span data-b="sold:${c.id}"></span></small></div>
+  <div class="row"><button class="btn sm" data-a="matchdem:${c.id}">${tx('Match demand')}</button><button class="btn sm ghost" data-a="detail:${c.id}">${tx('Specs')}</button><button class="btn sm ghost" data-a="retire:${c.id}">${tx('Retire')}</button><small style="margin-left:auto">${tx('Sold total')} <span data-b="sold:${c.id}"></span></small></div>
   </div>`;
 }
 function viewCars(){
@@ -1429,6 +1439,7 @@ function act(a){
     <div class="dl"><div><small>${tx('Engine')}</small><b>${esc(E.name)}</b></div><div><small>${tx('Power')}</small><b>${tx('{v} hp',{v:fn(st.hp)})}</b></div><div><small>0–100</small><b>${tx('{v} s',{v:dec(st.t,1)})}</b></div><div><small>${tx('Top speed')}</small><b>${tx('{v} km/h',{v:st.top})}</b></div><div><small>${st.ev?tx('Energy'):tx('Fuel')}</small><b>${st.ev?tx('{v} kWh/100 km',{v:dec(st.kwh,1)}):tx('{v} L/100 km',{v:dec(st.l100,1)})}</b></div><div><small>${tx('Weight')}</small><b>${tx('{v} kg',{v:fn(st.w)})}</b></div><div><small>CO₂</small><b>${tx('{v} g/km',{v:st.emis})}</b></div></div>
     <small>${esc(engDesc(E))} · ${tx(GEARS[c.gb].n)} · ${tx(DRIVES[c.dt].n)}${c.lsd?' + LSD':''} · ${tx('{v} suspension',{v:[SUSP[c.susp].n]})} · ${tx('{v} interior',{v:[INTS[c.int].n]})} · ${tx('{v} lights',{v:[HEADL[c.hl].n]})}${eq.length?' · '+eq.join(', '):''}</small>
     ${statRows(st.sc)}<small>${tx('Scores are rated against vehicles of {y}. Older designs slip as rivals improve.',{y:curYear()})}</small>`,[[tx('Close'),'close',1]]);break}
+  case 'matchdem':{const c=carById(x);c.prod=clamp(Math.ceil(Math.max(c.dem,c.rate)*1.05),0,HQ[S.hq].cap);notify(tx('{name}: production set to {n}/day.',{name:fullName(c),n:c.prod}));renderView();break}
   case 'race':runRace(x);break;
   }
 }
@@ -1463,7 +1474,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t
 document.addEventListener('input',e=>{
   const t=e.target,k=t.dataset&&t.dataset.i;if(!k)return;
   const [a,id]=k.split(':');
-  if(a==='prod'||a==='prodn'){const c=carById(id);const cap=HQ[S.hq].cap;let v=Math.round(+t.value||0);if(a==='prodn'&&t.value==='')return;v=clamp(v,0,cap);c.prod=v;
+  if(a==='prod'||a==='prodn'){const c=carById(id);const cap=HQ[S.hq].cap;let v=Math.round(+t.value||0);if(a==='prodn'&&t.value==='')return;v=clamp(v,0,cap);
+    if(a==='prod'&&Math.abs(v-c.prod)>Math.max(5,cap*.2)){t.value=c.prod;notify(tx('Drag the slider handle or type a number to change production.'));return}c.prod=v;
     const sl=$('#prod-'+id),nb=$('#pn-'+id);if(a==='prod'&&nb)nb.value=v;if(a==='prodn'&&sl)sl.value=v;refreshLive()}
   else if(a==='dname')draft.name=t.value||'Untitled';
   else if(a==='mname')draft.mname=t.value||'Untitled';
