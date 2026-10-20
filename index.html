@@ -172,6 +172,13 @@ td.n,th.n{text-align:right}
 .trimname{font-family:var(--display);font-size:1.15rem;text-transform:uppercase;letter-spacing:.03em}
 input.num{width:110px;text-align:right;font-weight:700}
 input[type=color]{width:52px;height:44px;padding:2px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg)}
+.hist{display:flex;flex-direction:column}
+.hrow{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:8px 16px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.hrow:last-child{border-bottom:0}
+.hpic{background:var(--sunk);border-radius:6px;padding:2px 4px}
+.hnums{display:flex;gap:18px}
+.hnum{display:flex;flex-direction:column;text-align:right}
+@media (max-width:620px){.hrow{grid-template-columns:80px minmax(0,1fr)}.hnums{grid-column:1/-1;justify-content:space-between}.hnum{text-align:left}}
 .anagrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
 .diag{width:100%;height:auto;display:block;background:var(--sunk);border-radius:8px}
 .cylf{fill:var(--surface);stroke:var(--muted);stroke-width:2;animation:fire 1.8s linear infinite}
@@ -718,6 +725,9 @@ const BG={
 'Drag the slider handle or type a number to change production.':'Плъзнете плъзгача или въведете число, за да промените производството.',
 'Match demand':'Според търсенето','{name}: production set to {n}/day.':'{name}: производство {n}/ден.',
 'You are over your credit line. Cut production of unsold cars and sell stock. {n} days left before the bank closes the company.':'Надвишили сте кредитната линия. Намалете производството на непродадените коли и разпродайте склада. Остават {n} дни, преди банката да закрие компанията.',
+'All versions matched to demand: {n} cars/day in total.':'Всички версии са според търсенето: общо {n} коли/ден.','Match all to demand':'Всички според търсенето',
+'Clear the history?':'Да изчистим ли историята?','This removes the list of retired cars. Your current cars are not affected.':'Това изтрива списъка със спрените коли. Текущите ви коли не се засягат.','Clear history':'Изчисти историята',
+'{n} retired version':'{n} спряна версия','{n} retired versions':'{n} спрени версии','{n} sold in total':'{n} продадени общо','History':'История','Clear':'Изчисти','Review':'Оценка','Last price':'Последна цена',
 };
 
 /* ============ LANGUAGE ============ */
@@ -1169,8 +1179,16 @@ function viewCars(){
     return `<article class="card carcard"><div class="spread"><div><small>${tx(BODIES[f.body].n)} · ${Math.floor(f.year)} · ${plural(vs.length,'{n} version','{n} versions')}</small><h3>${esc(f.mname)}</h3></div></div>
     <div class="pic">${carSVG(f.body,f.color,f.mname)}</div>${vs.map(trimBlock).join('')}
     <button class="btn" data-a="addTrim:${m}">${tx('Add a version')}</button></article>`};
-  return `<div class="sect-h"><div><small>${tx('Factory: {want} ordered · {cap} cars/day capacity, shared',{want:'<span data-b="want"></span>',cap:fn(HQ[S.hq].cap)})}</small><h2>${tx('Cars')}</h2></div><button class="btn primary" data-a="newCar">${tx('Design car')}</button></div>
-  ${models.length?`<div class="grid">${models.slice().reverse().map(card).join('')}</div>`:`<div class="card"><h3>${tx('No models yet')}</h3><p class="muted" style="margin:0">${S.engines.length?tx('Choose a body, fit one of your engines and set a price.'):tx('You need an engine first.')}</p><button class="btn primary" data-a="${S.engines.length?'newCar':'tab:eng'}">${S.engines.length?tx('Design your first car'):tx('Go to Engines')}</button></div>`}`;
+  return `<div class="sect-h"><div><small>${tx('Factory: {want} ordered · {cap} cars/day capacity, shared',{want:'<span data-b="want"></span>',cap:fn(HQ[S.hq].cap)})}</small><h2>${tx('Cars')}</h2></div><div class="row">${S.cars.length?`<button class="btn" data-a="matchall">${tx('Match all to demand')}</button>`:''}<button class="btn primary" data-a="newCar">${tx('Design car')}</button></div></div>
+  ${models.length?`<div class="grid">${models.slice().reverse().map(card).join('')}</div>`:`<div class="card"><h3>${tx('No models yet')}</h3><p class="muted" style="margin:0">${S.engines.length?tx('Choose a body, fit one of your engines and set a price.'):tx('You need an engine first.')}</p><button class="btn primary" data-a="${S.engines.length?'newCar':'tab:eng'}">${S.engines.length?tx('Design your first car'):tx('Go to Engines')}</button></div>`}
+  ${histSection()}`;
+}
+function histSection(){
+  const h=S.retired||[];if(!h.length)return '';
+  const tot=h.reduce((a,r)=>a+r.sold,0);
+  return `<section class="card"><div class="spread"><div><small>${plural(h.length,'{n} retired version','{n} retired versions')} · ${tx('{n} sold in total',{n:fn(tot)})}</small><h3>${tx('History')}</h3></div><button class="btn sm ghost" data-a="clearHist">${tx('Clear')}</button></div>
+  <div class="hist">${h.map(r=>`<div class="hrow"><div class="hpic">${carSVG(r.body,r.color,r.mname)}</div><div style="min-width:0"><b>${esc(r.mname+(r.trim?' '+r.trim:''))}</b><div class="muted" style="font-size:.85rem">${tx(BODIES[r.body].n)} · ${r.from}–${r.to} · ${esc(r.eng)}${r.gb&&GEARS[r.gb]?' · '+tx(GEARS[r.gb].n):''}${r.dt&&DRIVES[r.dt]?' · '+tx(DRIVES[r.dt].n):''}</div></div>
+   <div class="hnums"><div class="hnum"><small>${tx('Sold total')}</small><b>${fn(r.sold)}</b></div><div class="hnum"><small>${tx('Review')}</small><b>${dec(r.review,1)}</b></div><div class="hnum"><small>${tx('Last price')}</small><b>${fm(r.price*infl(r.to))}</b></div></div></div>`).join('')}</div></section>`;
 }
 function anaLabel(kind,k){
   if(kind==='body')return BODIES[k]?tx(BODIES[k].n):tx(k);
@@ -1382,6 +1400,7 @@ function switchLang(){
 }
 
 /* ============ ACTIONS ============ */
+const matchProd=c=>clamp(Math.round(c.dem)-1,0,HQ[S.hq].cap);
 function reviewCar(c,st){
   const bs=bestSeg(st,c.body),fr=st.fit[bs],V=segValue(bs,fr,c.body),val=V/c.price;
   let score=clamp(fr*9.5+(val-1)*3+1.2,1,10);score=Math.round(score*2)/2;
@@ -1432,14 +1451,19 @@ function act(a){
     const rv=reviewCar(c,st);c.review=rv.score;S.money-=dev;S.cars.push(c);sheet=null;renderSheet();tab='cars';renderNav();renderView();
     news('The {name} launches to a {v}/10 review.',{name:fullName(c),v:dec(rv.score,1)});modal(rv.html,[[tx('Go to production'),'close',1]]);break}
   case 'retire':{const c=carById(x),st=carStats(c);modal(`<h3>${tx('Retire the {name}?',{name:esc(fullName(c))})}</h3><p style="margin:0">${tx('Production stops and the {n} cars in stock are sold to fleet buyers for {v}.',{n:fn(c.inv),v:fm(c.inv*st.cost*inf*.5)})}</p>`,[[tx('Keep it'),'close'],[tx('Retire version'),'doRetire:'+x,1]]);break}
-  case 'doRetire':{const c=carById(x),st=carStats(c);S.money+=c.inv*st.cost*inf*.5;S.cars=S.cars.filter(z=>z.id!==x);closeModal();renderView();break}
+  case 'doRetire':{const c=carById(x),st=carStats(c),E=engById(c.eng);S.money+=c.inv*st.cost*inf*.5;
+    (S.retired=S.retired||[]).unshift({mname:c.mname,trim:c.trim,body:c.body,color:c.color,from:Math.floor(c.year),to:curYear(),sold:c.sold,review:c.review,price:c.price,hp:st.hp,eng:E?engDesc(E):'',gb:c.gb,dt:c.dt});
+    S.cars=S.cars.filter(z=>z.id!==x);closeModal();renderView();break}
+  case 'clearHist':modal(`<h3>${tx('Clear the history?')}</h3><p style="margin:0">${tx('This removes the list of retired cars. Your current cars are not affected.')}</p>`,[[tx('Keep it'),'close'],[tx('Clear history'),'doClearHist',1]]);break;
+  case 'doClearHist':S.retired=[];closeModal();renderView();break;
   case 'detail':{const c=carById(x),st=carStats(c),E=engById(c.eng);
     const eq=c.equip.map(k=>EQUIP[k]&&tx(EQUIP[k].n)).filter(Boolean);
     modal(`<span class="tag">${tx(BODIES[c.body].n)} · ${Math.floor(c.year)}</span><h2>${esc(fullName(c))}</h2>${carSVG(c.body,c.color,c.mname)}
     <div class="dl"><div><small>${tx('Engine')}</small><b>${esc(E.name)}</b></div><div><small>${tx('Power')}</small><b>${tx('{v} hp',{v:fn(st.hp)})}</b></div><div><small>0–100</small><b>${tx('{v} s',{v:dec(st.t,1)})}</b></div><div><small>${tx('Top speed')}</small><b>${tx('{v} km/h',{v:st.top})}</b></div><div><small>${st.ev?tx('Energy'):tx('Fuel')}</small><b>${st.ev?tx('{v} kWh/100 km',{v:dec(st.kwh,1)}):tx('{v} L/100 km',{v:dec(st.l100,1)})}</b></div><div><small>${tx('Weight')}</small><b>${tx('{v} kg',{v:fn(st.w)})}</b></div><div><small>CO₂</small><b>${tx('{v} g/km',{v:st.emis})}</b></div></div>
     <small>${esc(engDesc(E))} · ${tx(GEARS[c.gb].n)} · ${tx(DRIVES[c.dt].n)}${c.lsd?' + LSD':''} · ${tx('{v} suspension',{v:[SUSP[c.susp].n]})} · ${tx('{v} interior',{v:[INTS[c.int].n]})} · ${tx('{v} lights',{v:[HEADL[c.hl].n]})}${eq.length?' · '+eq.join(', '):''}</small>
     ${statRows(st.sc)}<small>${tx('Scores are rated against vehicles of {y}. Older designs slip as rivals improve.',{y:curYear()})}</small>`,[[tx('Close'),'close',1]]);break}
-  case 'matchdem':{const c=carById(x);c.prod=clamp(Math.ceil(Math.max(c.dem,c.rate)*1.05),0,HQ[S.hq].cap);notify(tx('{name}: production set to {n}/day.',{name:fullName(c),n:c.prod}));renderView();break}
+  case 'matchdem':{const c=carById(x);c.prod=matchProd(c);notify(tx('{name}: production set to {n}/day.',{name:fullName(c),n:c.prod}));renderView();break}
+  case 'matchall':{let tot=0;for(const c of S.cars){c.prod=matchProd(c);tot+=c.prod}notify(tx('All versions matched to demand: {n} cars/day in total.',{n:fn(tot)}));renderView();break}
   case 'race':runRace(x);break;
   }
 }
